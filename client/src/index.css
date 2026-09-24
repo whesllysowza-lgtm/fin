@@ -753,3 +753,26 @@ body { background: #edf5ea; }
 @media (max-height: 560px) and (max-width: 430px) {
   .settings-modal { zoom: .68; }
 }
+
+
+/* As quatro cores permanecem juntas em qualquer largura móvel */
+@media (max-width: 430px) {
+  .settings-modal .palette-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .settings-modal .palette-color-row {
+    min-width: 0;
+    min-height: 46px;
+    grid-template-columns: 27px minmax(0, 1fr);
+    padding: 5px;
+    gap: 2px 5px;
+  }
+  .settings-modal .palette-color-row input[type="color"] {
+    width: 27px;
+    height: 27px;
+    min-width: 27px;
+  }
+  .settings-modal .palette-color-row span { font-size: 9px; }
+  .settings-modal .palette-color-row code { font-size: 7px; }
+}
