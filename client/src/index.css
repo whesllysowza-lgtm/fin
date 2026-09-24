@@ -224,3 +224,14 @@ body { background: radial-gradient(circle at 15% 5%, #f6fff3 0, #eaf3e7 32%, #df
   .palette-grid { grid-template-columns: 1fr; }
   .palette-color-row { min-height: 54px; }
 }
+
+
+/* Paleta mobile legível: um cartão por linha, amostra grande e texto completo */
+@media (max-width: 720px) {
+  .palette-grid { grid-template-columns: 1fr; gap: 10px; }
+  .palette-color-row { display: grid; grid-template-columns: 48px minmax(0, 1fr); grid-template-areas: "color label" "color code"; min-height: 68px; padding: 10px 12px; border-radius: 14px; gap: 3px 10px; }
+  .palette-color-row input[type="color"] { width: 48px; height: 48px; border-radius: 12px; }
+  .palette-color-row span { font-size: 12px; white-space: normal; overflow: visible; text-overflow: clip; }
+  .palette-color-row code { font-size: 10px; }
+  .palette-reset { min-height: 36px; margin-top: 12px; font-size: 12px; }
+}
