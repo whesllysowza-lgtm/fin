@@ -111,3 +111,21 @@ body { background: radial-gradient(circle at 15% 5%, #f6fff3 0, #eaf3e7 32%, #df
 .history-table, .category-card { border: 1px solid rgba(214,231,210,.9); box-shadow: 0 12px 28px rgba(53,91,47,.08); }.table-head, .category-card h2 { background: linear-gradient(135deg, #83bd76, #65a95c); }.table-row:hover, .category-item:hover { background: #f7fcf5; }
 .settings-backdrop, .salary-editor-backdrop, .month-modal-backdrop, .chart-backdrop { background: rgba(20,37,19,.52); backdrop-filter: blur(9px); }.settings-modal, .salary-editor-modal, .month-modal, .chart-modal { border: 1px solid rgba(205,229,198,.95); box-shadow: 0 28px 80px rgba(15,40,13,.32); }
 @media (max-width: 720px) { body { background: #eef5eb; }.sheet-topbar { height: 72px; }.sheet-main { padding-top: 15px; }.welcome-strip { min-height: 205px; }.dashboard-actions { gap: 8px; }.green-action, .light-action, .chart-action { min-height: 47px; padding: 0 8px; font-size: 11px; }.sheet-bottom-nav { background: rgba(255,255,255,.88); backdrop-filter: blur(14px); } }
+
+
+/* Correção de escala e enquadramento geral */
+.sheet-app { width: min(100% - 32px, 860px); max-width: 860px; }
+.sheet-topbar { padding-left: clamp(20px, 4vw, 34px); padding-right: clamp(20px, 4vw, 34px); }
+.sheet-main { padding-left: clamp(18px, 4vw, 34px); padding-right: clamp(18px, 4vw, 34px); }
+@media (min-width: 721px) {
+  .sheet-app { min-height: calc(100vh - 44px); }
+  .sheet-topbar { height: 78px; }
+  .sheet-brand strong { font-size: 17px; }
+  .sheet-tabs button { font-size: 11px; }
+  .welcome-strip { min-height: 158px; }
+}
+@media (max-width: 720px) {
+  .sheet-app { width: 100%; max-width: none; }
+  .sheet-topbar { padding-left: 13px; padding-right: 13px; }
+  .sheet-main { padding-left: 15px; padding-right: 15px; }
+}
