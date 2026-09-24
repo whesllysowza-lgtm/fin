@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { BarChart3, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays } from "lucide-react";
+import { BarChart3, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays, LogOut } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import FinanceMascot from "@/components/FinanceMascot";
 
 type Entry = { id: number; person: string; origin: string; expense: string; value: number };
 type MonthlySummary = { salary: number; expenses: number; card: number };
@@ -9,7 +10,7 @@ type IndicatorKey = "salary" | "expenses" | "leftover" | "card";
 type IndicatorSettings = Record<IndicatorKey, boolean>;
 type ThemePalette = { primary: string; background: string; card: string; text: string };
 
-const defaultPalette: ThemePalette = { primary: "#285943", background: "#f5f6f0", card: "#e4eee5", text: "#24352e" };
+const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
 type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string };
 
 const initialEntries: Entry[] = [
@@ -90,15 +91,15 @@ function nextMonth(label: string) {
 
 export default function Home() {
   const [tab, setTab] = useState("PAINEL");
-  const [people, setPeople] = useState<string[]>(() => JSON.parse(localStorage.getItem("wesly-people") || "null") || defaultPeople);
-  const [origins, setOrigins] = useState<string[]>(() => JSON.parse(localStorage.getItem("wesly-origins") || "null") || defaultOrigins);
-  const [expenses, setExpenses] = useState<string[]>(() => JSON.parse(localStorage.getItem("wesly-expenses") || "null") || defaultExpenses);
+  const [people, setPeople] = useState<string[]>(defaultPeople);
+  const [origins, setOrigins] = useState<string[]>(defaultOrigins);
+  const [expenses, setExpenses] = useState<string[]>(defaultExpenses);
   const [selectedPerson, setSelectedPerson] = useState("Wesly");
-  const [currentMonth, setCurrentMonth] = useState(() => localStorage.getItem("wesly-current-month") || calendarMonth());
-  const [archivedMonths, setArchivedMonths] = useState<string[]>(() => JSON.parse(localStorage.getItem("wesly-archived-months") || "[]"));
-  const [archivedData, setArchivedData] = useState<Record<string, Entry[]>>(() => JSON.parse(localStorage.getItem("wesly-archived-data") || "{}"));
-  const [entries, setEntries] = useState<Entry[]>(() => JSON.parse(localStorage.getItem("wesly-current-entries") || "null") || initialEntries);
-  const [summaries, setSummaries] = useState<Record<string, MonthlySummary>>(() => JSON.parse(localStorage.getItem("wesly-monthly-summaries") || "null") || { "Junho 2026": { salary: 1540, expenses: 982.65, card: 229.65 } });
+  const [currentMonth, setCurrentMonth] = useState(calendarMonth);
+  const [archivedMonths, setArchivedMonths] = useState<string[]>([]);
+  const [archivedData, setArchivedData] = useState<Record<string, Entry[]>>({});
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [summaries, setSummaries] = useState<Record<string, MonthlySummary>>({});
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({ person: "", origin: "", expense: "", value: "" });
   const [message, setMessage] = useState("");
@@ -118,32 +119,22 @@ export default function Home() {
   const skipHistoryRef = useRef(false);
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty("--theme-primary", palette.primary);
-    root.style.setProperty("--theme-background", palette.background);
-    root.style.setProperty("--theme-card", palette.card);
-    root.style.setProperty("--theme-text", palette.text);
-    return () => {
-      root.style.removeProperty("--theme-primary");
-      root.style.removeProperty("--theme-background");
-      root.style.removeProperty("--theme-card");
-      root.style.removeProperty("--theme-text");
-    };
-  }, [palette]);
-
-  useEffect(() => {
     let active = true;
     const loadCloudState = async () => {
-      const { data, error } = await supabase.from("finance_state").select("payload").eq("id", "main").maybeSingle();
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const user = userData.user;
+      if (userError || !user) {
+        console.warn("[Supabase Auth] Usuário não autenticado:", userError?.message || "sessão ausente");
+        return;
+      }
+      await supabase.rpc("claim_legacy_finance_state");
+      const { data, error } = await supabase.from("finance_state").select("payload").eq("user_id", user.id).maybeSingle();
       if (!active) return;
       const cloudPayload = data?.payload as Record<string, unknown> | null;
-      const legacyPayload = readLegacyState();
       if (error) {
         console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
         applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail });
-      } else if (legacyPayload) {
-        applyCloudState(legacyPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail });
       }
       setCloudLoaded(true);
     };
@@ -163,13 +154,16 @@ export default function Home() {
       setCanUndo(true);
     }
     lastSnapshotRef.current = payload;
-    void supabase.from("finance_state").upsert({ id: "main", payload, updated_at: new Date().toISOString() }).then(({ error }) => {
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase.from("finance_state").upsert({ id: user.id, user_id: user.id, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       if (error) {
         console.warn("[Supabase] Não foi possível salvar o estado online:", error.message);
         return;
       }
       legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
-    });
+    })();
   }, [cloudLoaded, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth]);
   const summary = summaries[currentMonth] || { salary: 1540, expenses: 0, card: 0 };
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
@@ -382,11 +376,11 @@ export default function Home() {
 
   return (
     <div className="sheet-app" style={{ "--theme-primary": palette.primary, "--theme-background": palette.background, "--theme-card": palette.card, "--theme-text": palette.text } as React.CSSProperties}>
-      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {selectedPerson} 2026</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button></div></header>
+      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {selectedPerson} 2026</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void supabase.auth.signOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
         {message && <div className="sheet-message" role="status">{message}</div>}
-        {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} expenses={selectedExpenses} leftover={leftover} card={selectedCard} selectedPerson={selectedPerson} onPersonChange={setSelectedPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} onChart={() => setShowChart(true)} />}
+        {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} expenses={selectedExpenses} leftover={leftover} card={selectedCard} activityKey={entries.length} selectedPerson={selectedPerson} onPersonChange={setSelectedPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} onChart={() => setShowChart(true)} />}
         {tab === "REGISTRO" && <Register form={form} setForm={setForm} onSubmit={register} people={people} origins={origins} expenses={expenses} />}
         {tab === "HISTÓRICO" && <HistoryView entries={filteredEntries} allEntries={selectedEntries} search={search} setSearch={setSearch} month={currentMonth} archivedMonths={archivedMonths} archivedData={archivedData} summaries={summaries} person={selectedPerson} onEdit={editEntry} onDelete={deleteEntry} />}
         {tab === "CATEGORIAS" && <CategoriesView people={people} origins={origins} expenses={expenses} onRename={updateCategory} onAdd={addCategory} onRemove={removeCategory} />}
@@ -401,7 +395,7 @@ export default function Home() {
   );
 }
 
-function Dashboard({ people, settings, month, archivedMonths, salary, expenses, leftover, card, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth, onEditSalary, onChart }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; expenses: number; leftover: number; card: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void; onEditSalary: () => void; onChart: () => void }) {
+function Dashboard({ people, settings, month, archivedMonths, salary, expenses, leftover, card, activityKey, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth, onEditSalary, onChart }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; expenses: number; leftover: number; card: number; activityKey: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void; onEditSalary: () => void; onChart: () => void }) {
   return (
     <section className="panel-view">
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
@@ -413,6 +407,7 @@ function Dashboard({ people, settings, month, archivedMonths, salary, expenses, 
         {settings.card && <Metric label="Gastos com cartão" value={card} />}
       </div>
       <div className="dashboard-actions"><button type="button" onClick={(event) => { event.preventDefault(); onRegister(); }} className="green-action"><CirclePlus size={19} /> Registrar despesa</button><button type="button" onClick={(event) => { event.preventDefault(); onHistory(); }} className="light-action"><History size={18} /> Ver histórico</button><button type="button" onClick={(event) => { event.preventDefault(); onChart(); }} className="chart-action"><LineChart size={18} /> Gráfico</button></div>
+      <FinanceMascot leftover={leftover} expenses={expenses} activityKey={activityKey} />
       <div className="mobile-summary">{settings.salary && <Metric label="Salário" value={salary} editable onClick={onEditSalary} />}{settings.expenses && <Metric label="Despesas" value={expenses} />}{settings.leftover && <Metric label="Sobrou" value={leftover} />}{settings.card && <Metric label="Gastos com cartão" value={card} />}</div>
     </section>
   );
