@@ -10,7 +10,7 @@ type IndicatorSettings = Record<IndicatorKey, boolean>;
 type ThemePalette = { primary: string; background: string; card: string; text: string };
 
 const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
-type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string };
+type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string };
 
 const initialEntries: Entry[] = [
   { id: 1, person: "Vanessa", origin: "CARTÃO", expense: "FATURA", value: 10.9 },
@@ -64,6 +64,7 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   setIndicatorSettings: (value: Record<string, IndicatorSettings>) => void;
   setPalette: (value: ThemePalette) => void;
   setCurrentMonth: (value: string) => void;
+  setAlertEmail: (value: string) => void;
 }) {
   if (!payload) return;
   if (Array.isArray(payload.people)) setters.setPeople(payload.people as string[]);
@@ -76,6 +77,7 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   if (payload.indicatorSettings && typeof payload.indicatorSettings === "object") setters.setIndicatorSettings(payload.indicatorSettings as Record<string, IndicatorSettings>);
   if (payload.palette && typeof payload.palette === "object") setters.setPalette({ ...defaultPalette, ...(payload.palette as Partial<ThemePalette>) });
   if (typeof payload.currentMonth === "string") setters.setCurrentMonth(payload.currentMonth);
+  if (typeof payload.alertEmail === "string") setters.setAlertEmail(payload.alertEmail);
 }
 
 function calendarMonth() { const now = new Date(); return `${monthNames[now.getMonth()]} ${now.getFullYear()}`; }
@@ -107,6 +109,7 @@ export default function Home() {
   const [salaryDraft, setSalaryDraft] = useState("");
   const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>(() => JSON.parse(localStorage.getItem("wesly-indicator-settings") || "null") || { Wesly: { salary: true, expenses: true, leftover: true, card: true }, Pai: { salary: false, expenses: true, leftover: true, card: true }, Mãe: { salary: false, expenses: true, leftover: true, card: true }, Vanessa: { salary: false, expenses: true, leftover: true, card: true }, Cristiano: { salary: false, expenses: true, leftover: true, card: true }, Vô: { salary: false, expenses: true, leftover: true, card: true } });
   const [palette, setPalette] = useState<ThemePalette>(defaultPalette);
+  const [alertEmail, setAlertEmail] = useState("wesleyflamengo23@hotmail.com");
   const [cloudLoaded, setCloudLoaded] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const lastSnapshotRef = useRef<AppSnapshot | null>(null);
@@ -123,9 +126,9 @@ export default function Home() {
       if (error) {
         console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
-        applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth });
+        applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail });
       } else if (legacyPayload) {
-        applyCloudState(legacyPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth });
+        applyCloudState(legacyPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail });
       }
       setCloudLoaded(true);
     };
@@ -135,7 +138,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!cloudLoaded) return;
-    const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth };
+    const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail };
     if (skipHistoryRef.current) {
       skipHistoryRef.current = false;
       undoSnapshotRef.current = null;
@@ -212,6 +215,13 @@ export default function Home() {
     setShowSalaryEditor(true);
   };
 
+  const sendSalaryAlert = async (salary: number, month: string) => {
+    if (!alertEmail.trim()) return;
+    const { error } = await supabase.functions.invoke("send-salary-alert", { body: { to: alertEmail.trim(), month, salary } });
+    if (error) notify("Salário salvo, mas o alerta por e-mail ainda precisa ser configurado.");
+    else notify(`Alerta enviado para ${alertEmail.trim()}.`);
+  };
+
   const saveSalary = () => {
     const salary = Number(salaryDraft.replace(/[^0-9,.-]/g, "").replace(",", "."));
     if (!Number.isFinite(salary) || salary < 0) {
@@ -224,6 +234,7 @@ export default function Home() {
     }));
     setShowSalaryEditor(false);
     notify(`Salário de ${currentMonth} atualizado.`);
+    if (salary <= 0) void sendSalaryAlert(salary, currentMonth);
   };
 
   useEffect(() => {
@@ -363,7 +374,7 @@ export default function Home() {
       </main>
       {showChart && <ChartModal month={currentMonth} people={people} entries={entries} onClose={() => setShowChart(false)} />}
       {showSalaryEditor && <div className="salary-editor-backdrop" role="presentation" onClick={() => setShowSalaryEditor(false)}><div className="salary-editor-modal" role="dialog" aria-modal="true" aria-labelledby="salary-editor-title" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR SALÁRIO</span><h2 id="salary-editor-title">Salário de {currentMonth}</h2><p>Altere o valor deste mês. O salário ficará salvo no histórico mensal do Supabase.</p><label className="field-label">VALOR DO SALÁRIO<input className="sheet-input" inputMode="decimal" autoFocus value={salaryDraft} onChange={(event) => setSalaryDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveSalary(); }} /></label><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowSalaryEditor(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveSalary}>Salvar salário</button></div></div></div>}
-      {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Regras da planilha: Wesly possui salário e sobra. Os demais perfis mostram apenas despesas e cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className="settings-row" key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} readOnly disabled /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><div className="palette-section"><span className="palette-title">PALETA DE CORES</span><p>Personalize o visual do sistema. As cores ficam salvas no Supabase.</p><div className="palette-grid">{([["primary", "Cor principal"], ["background", "Fundo"], ["card", "Cartões"], ["text", "Texto"]] as const).map(([key, label]) => <label className="palette-color-row" key={key}><span>{label}</span><input type="color" value={palette[key]} onChange={(event) => setPalette((current) => ({ ...current, [key]: event.target.value }))} aria-label={label} /><code>{palette[key]}</code></label>)}</div><button type="button" className="palette-reset" onClick={() => setPalette(defaultPalette)}>Restaurar cores originais</button></div><button type="button" className="settings-done" onClick={() => setShowSettings(false)}>Concluir</button></div></div>}
+      {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Regras da planilha: Wesly possui salário e sobra. Os demais perfis mostram apenas despesas e cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className="settings-row" key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} readOnly disabled /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><div className="alert-email-section"><span className="palette-title">ALERTA POR E-MAIL</span><p>Quando o salário ficar em R$ 0,00 ou negativo, enviaremos um aviso para este endereço.</p><label className="field-label">E-MAIL DO ALERTA<input className="sheet-input" type="email" value={alertEmail} onChange={(event) => setAlertEmail(event.target.value)} placeholder="seuemail@hotmail.com" /></label></div><div className="palette-section"><span className="palette-title">PALETA DE CORES</span><p>Personalize o visual do sistema. As cores ficam salvas no Supabase.</p><div className="palette-grid">{([["primary", "Cor principal"], ["background", "Fundo"], ["card", "Cartões"], ["text", "Texto"]] as const).map(([key, label]) => <label className="palette-color-row" key={key}><span>{label}</span><input type="color" value={palette[key]} onChange={(event) => setPalette((current) => ({ ...current, [key]: event.target.value }))} aria-label={label} /><code>{palette[key]}</code></label>)}</div><button type="button" className="palette-reset" onClick={() => setPalette(defaultPalette)}>Restaurar cores originais</button></div><button type="button" className="settings-done" onClick={() => setShowSettings(false)}>Concluir</button></div></div>}
       {showNewMonthConfirm && <div className="month-modal-backdrop" role="presentation"><div className="month-modal" role="dialog" aria-modal="true" aria-labelledby="new-month-title"><span className="modal-kicker">ARQUIVAR MÊS</span><h2 id="new-month-title">Começar um novo mês?</h2><p>Os lançamentos de <strong>{currentMonth}</strong> serão salvos no histórico e a tela ficará pronta para {nextMonth(currentMonth)}.</p><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowNewMonthConfirm(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={() => { setShowNewMonthConfirm(false); startNewMonth(); }}>Começar novo mês</button></div></div></div>}
       <nav className="sheet-bottom-nav">{[["PAINEL", HomeIcon], ["REGISTRO", Plus], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={19} /><span>{name as string}</span></button>)}</nav>
     </div>
