@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { BarChart3, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2 } from "lucide-react";
+import { BarChart3, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2 } from "lucide-react";
 
 type Entry = { id: number; person: string; origin: string; expense: string; value: number };
 type MonthlySummary = { salary: number; expenses: number; card: number };
@@ -9,6 +9,7 @@ type IndicatorSettings = Record<IndicatorKey, boolean>;
 type ThemePalette = { primary: string; background: string; card: string; text: string };
 
 const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
+type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string };
 
 const initialEntries: Entry[] = [
   { id: 1, person: "Vanessa", origin: "CARTÃO", expense: "FATURA", value: 10.9 },
@@ -105,6 +106,10 @@ export default function Home() {
   const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>(() => JSON.parse(localStorage.getItem("wesly-indicator-settings") || "null") || { Wesly: { salary: true, expenses: true, leftover: true, card: true }, Pai: { salary: false, expenses: true, leftover: true, card: true }, Mãe: { salary: false, expenses: true, leftover: true, card: true }, Vanessa: { salary: false, expenses: true, leftover: true, card: true }, Cristiano: { salary: false, expenses: true, leftover: true, card: true }, Vô: { salary: false, expenses: true, leftover: true, card: true } });
   const [palette, setPalette] = useState<ThemePalette>(defaultPalette);
   const [cloudLoaded, setCloudLoaded] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const lastSnapshotRef = useRef<AppSnapshot | null>(null);
+  const undoSnapshotRef = useRef<AppSnapshot | null>(null);
+  const skipHistoryRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -128,7 +133,16 @@ export default function Home() {
 
   useEffect(() => {
     if (!cloudLoaded) return;
-    const payload = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth };
+    const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth };
+    if (skipHistoryRef.current) {
+      skipHistoryRef.current = false;
+      undoSnapshotRef.current = null;
+      setCanUndo(false);
+    } else if (lastSnapshotRef.current) {
+      undoSnapshotRef.current = lastSnapshotRef.current;
+      setCanUndo(true);
+    }
+    lastSnapshotRef.current = payload;
     void supabase.from("finance_state").upsert({ id: "main", payload, updated_at: new Date().toISOString() }).then(({ error }) => {
       if (error) {
         console.warn("[Supabase] Não foi possível salvar o estado online:", error.message);
@@ -154,6 +168,41 @@ export default function Home() {
     setMessage(text);
     window.setTimeout(() => setMessage(""), 2400);
   };
+
+  const undoLastAction = () => {
+    const snapshot = undoSnapshotRef.current;
+    if (!snapshot) {
+      notify("Não há nenhuma ação para desfazer.");
+      return;
+    }
+    skipHistoryRef.current = true;
+    setPeople(snapshot.people);
+    setOrigins(snapshot.origins);
+    setExpenses(snapshot.expenses);
+    setEntries(snapshot.entries);
+    setArchivedMonths(snapshot.archivedMonths);
+    setArchivedData(snapshot.archivedData);
+    setSummaries(snapshot.summaries);
+    setIndicatorSettings(snapshot.indicatorSettings);
+    setPalette(snapshot.palette);
+    setCurrentMonth(snapshot.currentMonth);
+    undoSnapshotRef.current = null;
+    setCanUndo(false);
+    notify("Última alteração desfeita.");
+  };
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isEditing = target?.matches("input, textarea, select, [contenteditable=\"true\"]");
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !isEditing && canUndo) {
+        event.preventDefault();
+        undoLastAction();
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [canUndo]);
 
   const openSalaryEditor = () => {
     if (selectedPerson !== "Wesly") return;
@@ -301,7 +350,7 @@ export default function Home() {
 
   return (
     <div className="sheet-app" style={{ "--theme-primary": palette.primary, "--theme-background": palette.background, "--theme-card": palette.card, "--theme-text": palette.text } as React.CSSProperties}>
-      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {selectedPerson} 2026</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button></div></header>
+      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {selectedPerson} 2026</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button></div></header>
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
         {message && <div className="sheet-message" role="status">{message}</div>}
