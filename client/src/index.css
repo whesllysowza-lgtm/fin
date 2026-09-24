@@ -1070,3 +1070,115 @@ body { background: #edf5ea; }
 .sheet-app .category-item span {
   color: var(--theme-text, #2f3c2d);
 }
+
+
+/* Tema completo: as quatro cores escolhidas controlam toda a interface */
+.sheet-app {
+  background: var(--theme-background, #f5f8f3) !important;
+  color: var(--theme-text, #2f3c2d) !important;
+}
+.sheet-app::before { opacity: .18; }
+.sheet-app .sheet-topbar,
+.sheet-app .sheet-tabs,
+.sheet-app .month-chip,
+.sheet-app .welcome-strip,
+.sheet-app .register-card,
+.sheet-app .export-panel,
+.sheet-app .category-card,
+.sheet-app .history-table,
+.sheet-app .archive-block,
+.sheet-app .mobile-summary .metric,
+.sheet-app .year-month-card {
+  background: var(--theme-card, #e4f5df) !important;
+  border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 22%, var(--theme-background, #f5f8f3)) !important;
+}
+.sheet-app .sheet-topbar,
+.sheet-app .sheet-tabs,
+.sheet-app .sheet-tabs button,
+.sheet-app .month-chip,
+.sheet-app .section-title,
+.sheet-app .welcome-copy,
+.sheet-app .welcome-copy span,
+.sheet-app .welcome-copy strong,
+.sheet-app .metric span,
+.sheet-app .metric strong,
+.sheet-app .section-title h1,
+.sheet-app .section-title p,
+.sheet-app .field-label,
+.sheet-app .table-row,
+.sheet-app .category-edit-row input,
+.sheet-app .category-card h2,
+.sheet-app .archive-heading,
+.sheet-app .export-panel,
+.sheet-app .export-panel strong,
+.sheet-app .sheet-brand strong,
+.sheet-app .sheet-brand small {
+  color: var(--theme-text, #2f3c2d) !important;
+}
+.sheet-app .sheet-tabs button.selected,
+.sheet-app .green-action,
+.sheet-app .register-button,
+.sheet-app .modal-confirm,
+.sheet-app .settings-done,
+.sheet-app .table-head,
+.sheet-app .category-card h2,
+.sheet-app .category-add button,
+.sheet-app .chart-action:hover {
+  background: var(--theme-primary, #2e6f25) !important;
+  border-color: var(--theme-primary, #2e6f25) !important;
+  color: var(--theme-background, #f5f8f3) !important;
+}
+.sheet-app .sheet-tabs button.selected span,
+.sheet-app .green-action svg,
+.sheet-app .green-action,
+.sheet-app .register-button,
+.sheet-app .modal-confirm,
+.sheet-app .settings-done,
+.sheet-app .table-head,
+.sheet-app .category-card h2 { color: var(--theme-background, #f5f8f3) !important; }
+.sheet-app .light-action,
+.sheet-app .chart-action,
+.sheet-app .new-month-button,
+.sheet-app .undo-button,
+.sheet-app .top-icon,
+.sheet-app .archived-toggle,
+.sheet-app .palette-reset,
+.sheet-app .sheet-bottom-nav {
+  color: var(--theme-primary, #2e6f25) !important;
+  border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 25%, transparent) !important;
+  background: color-mix(in srgb, var(--theme-card, #e4f5df) 78%, var(--theme-background, #f5f8f3)) !important;
+}
+.sheet-app .sheet-input,
+.sheet-app select,
+.sheet-app .category-edit-row input,
+.sheet-app .category-add input,
+.sheet-app .history-toolbar input,
+.sheet-app .export-month-select {
+  color: var(--theme-text, #2f3c2d) !important;
+  background: var(--theme-background, #f5f8f3) !important;
+  border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 30%, transparent) !important;
+}
+.sheet-app .metric strong { color: var(--theme-primary, #2e6f25) !important; }
+.sheet-app .sheet-bottom-nav button.selected,
+.sheet-app .sheet-bottom-nav button.selected svg,
+.sheet-app .modal-kicker,
+.sheet-app .palette-title,
+.sheet-app .metric-edit-hint { color: var(--theme-primary, #2e6f25) !important; }
+.sheet-app .table-head span { color: var(--theme-background, #f5f8f3) !important; }
+.sheet-app .sign-out-button { color: var(--theme-primary, #2e6f25) !important; }
+
+/* Login e cadastro mobile */
+.auth-loading { min-height: 100dvh; display: grid; place-items: center; color: #2f3c2d; background: #f5f8f3; font-size: 14px; }
+.auth-screen { min-height: 100dvh; display: grid; place-items: center; padding: 18px; background: radial-gradient(circle at 15% 5%, #f6fff3 0, #eaf3e7 32%, #dfeade 100%); }
+.auth-card { width: min(100%, 390px); box-sizing: border-box; padding: 28px 22px; border: 1px solid #cfe4c9; border-radius: 24px; background: rgba(255,255,255,.92); box-shadow: 0 24px 70px rgba(25,66,26,.18); }
+.auth-logo { width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: 16px; border-radius: 15px; color: #fff; background: #2e6f25; font-size: 24px; font-weight: 900; }
+.auth-card h1 { margin: 7px 0 8px; color: #2f3c2d; font-size: 26px; letter-spacing: -.04em; }
+.auth-card > p { margin: 0 0 20px; color: #6f806c; font-size: 13px; line-height: 1.5; }
+.auth-form { display: grid; gap: 13px; }
+.auth-form label { display: grid; gap: 6px; color: #397d2f; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.auth-form input { min-height: 45px; box-sizing: border-box; border: 1px solid #b5d6ad; border-radius: 11px; padding: 0 12px; color: #2f3c2d; background: #f5f8f3; font-size: 14px; letter-spacing: normal; }
+.auth-form button { min-height: 47px; margin-top: 4px; border: 0; border-radius: 12px; color: #fff; background: #2e6f25; font-size: 13px; font-weight: 800; }
+.auth-form button:disabled { opacity: .6; }
+.auth-message { margin: 15px 0 0 !important; padding: 10px 12px; border-radius: 10px; color: #397d2f !important; background: #e4f5df; font-size: 12px !important; }
+.auth-switch { width: 100%; margin-top: 16px; border: 0; color: #397d2f; background: transparent; font-size: 12px; font-weight: 800; }
+@media (max-width: 430px) { .auth-screen { align-items: start; padding: 20px 14px; }.auth-card { margin-top: 7vh; padding: 24px 18px; border-radius: 20px; }.auth-card h1 { font-size: 23px; } }
