@@ -442,3 +442,133 @@ body { background: #edf5ea; }
   .palette-color-row { grid-template-columns: 42px minmax(0, 1fr); padding-left: 8px; padding-right: 8px; }
   .palette-color-row input[type="color"] { width: 42px; height: 42px; min-width: 42px; }
 }
+
+
+/* Restaurado da versão anterior estável: configurações em uma única janela rolável */
+@media (max-width: 430px) {
+  .settings-backdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 14px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: rgba(20, 37, 19, .52);
+    backdrop-filter: blur(9px);
+  }
+
+  .settings-modal {
+    display: block;
+    width: min(100%, 430px);
+    max-width: 430px;
+    height: auto;
+    max-height: calc(100dvh - 28px);
+    margin: auto 0;
+    padding: 19px 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    border: 1px solid rgba(205, 229, 198, .95);
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 28px 80px rgba(15, 40, 13, .32);
+  }
+
+  .settings-heading {
+    position: static;
+    margin: 0;
+    padding: 0 0 13px;
+    border-bottom: 1px solid #edf3eb;
+    background: #fff;
+    backdrop-filter: none;
+  }
+
+  .settings-modal > p {
+    margin: 13px 0 15px;
+  }
+
+  .settings-modal > .settings-list,
+  .settings-modal > .alert-email-section,
+  .settings-modal > .palette-section,
+  .palette-section,
+  .alert-email-section {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .palette-preview {
+    width: 100%;
+    height: 62px;
+    margin: 12px 0 14px;
+  }
+
+  .palette-grid {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .palette-color-row {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    min-height: 68px;
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-areas: "color label" "color code";
+    align-items: center;
+    gap: 3px 10px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: 14px;
+  }
+
+  .palette-color-row input[type="color"] {
+    grid-area: color;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    padding: 3px;
+    border-radius: 12px;
+  }
+
+  .palette-color-row span {
+    grid-area: label;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 12px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .palette-color-row code {
+    grid-area: code;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 10px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .settings-modal .settings-done {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    width: 100%;
+    margin-top: 17px;
+    box-shadow: 0 -8px 16px rgba(255, 255, 255, .9);
+  }
+}
+
+@media (max-width: 360px) {
+  .settings-backdrop { padding: 10px; }
+  .settings-modal { padding: 17px 12px; }
+  .palette-color-row { grid-template-columns: 42px minmax(0, 1fr); padding: 9px 10px; }
+  .palette-color-row input[type="color"] { width: 42px; height: 42px; min-width: 42px; }
+}
