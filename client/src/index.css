@@ -78,10 +78,10 @@
 @media (max-width: 420px) { .salary-editor-backdrop { padding: 14px; }.salary-editor-modal { padding: 20px; border-radius: 18px; }.salary-editor-modal h2 { font-size: 19px; } }
 
 /* Personalização de cores salva no Supabase */
-.sheet-app { background: var(--theme-background, #f5f6f0); color: var(--theme-text, #24352e); }
-.sheet-app .sheet-tabs button.selected, .sheet-app .green-action, .sheet-app .modal-confirm, .sheet-app .settings-done, .sheet-app .table-head, .sheet-app .category-card h2 { background: var(--theme-primary, #285943); }
-.sheet-app .welcome-strip { background: var(--theme-card, #e4eee5); }
-.sheet-app .sheet-topbar { background: color-mix(in srgb, var(--theme-card, #e4eee5) 24%, white); }
+.sheet-app { background: var(--theme-background, #f5f8f3); color: var(--theme-text, #2f3c2d); }
+.sheet-app .sheet-tabs button.selected, .sheet-app .green-action, .sheet-app .modal-confirm, .sheet-app .settings-done, .sheet-app .table-head, .sheet-app .category-card h2 { background: var(--theme-primary, #2e6f25); }
+.sheet-app .welcome-strip { background: var(--theme-card, #e4f5df); }
+.sheet-app .sheet-topbar { background: color-mix(in srgb, var(--theme-card, #e4f5df) 24%, white); }
 .palette-section { margin-top: 20px; padding-top: 17px; border-top: 1px solid #e4eee1; }.palette-title { color: #75a968; font-size: 10px; font-weight: 800; letter-spacing: .13em; }.palette-section p { margin: 6px 0 12px; }.palette-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }.palette-color-row { display: grid; grid-template-columns: 38px 1fr; grid-template-areas: "color label" "color code"; align-items: center; gap: 2px 8px; min-height: 58px; padding: 8px; border: 1px solid #e2ece0; border-radius: 12px; color: #566653; background: #fbfefb; font-size: 11px; }.palette-color-row span { grid-area: label; font-weight: 700; }.palette-color-row input[type="color"] { grid-area: color; width: 38px; height: 38px; padding: 3px; border: 1px solid #d2e2ce; border-radius: 10px; background: #fff; cursor: pointer; }.palette-color-row code { grid-area: code; color: #829080; font-size: 9px; text-align: left; text-transform: uppercase; }.palette-reset { margin-top: 10px; color: #6d8c68; background: transparent; font-size: 11px; text-decoration: underline; }
 
 .undo-button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #cfe4c8; border-radius: 10px; color: #397d2f; background: #f1faee; transition: .18s ease; }.undo-button:hover:not(:disabled) { background: #e2f2dd; transform: translateY(-1px); }.undo-button:disabled { cursor: not-allowed; opacity: .38; }
@@ -848,190 +848,6 @@ body { background: #edf5ea; }
   .year-summary-fields input { min-width: 0 !important; max-width: 100%; appearance: textfield; }
 }
 
-.sheet-app {
-  --theme-on-primary: color-mix(in srgb, var(--theme-primary) 8%, white);
-  --theme-muted: color-mix(in srgb, var(--theme-text) 62%, var(--theme-background));
-  --theme-subtle: color-mix(in srgb, var(--theme-text) 42%, var(--theme-background));
-  --theme-line: color-mix(in srgb, var(--theme-text) 16%, var(--theme-background));
-  --theme-soft: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-background));
-  --theme-soft-strong: color-mix(in srgb, var(--theme-primary) 18%, var(--theme-background));
-  --theme-danger: color-mix(in srgb, #a94b43 78%, var(--theme-text));
-  --theme-danger-soft: color-mix(in srgb, var(--theme-danger) 10%, var(--theme-background));
-}
-
-.sheet-app .sheet-topbar,
-.sheet-app .sheet-tabs,
-.sheet-app .top-icon,
-.sheet-app .light-action,
-.sheet-app .chart-action,
-.sheet-app .sheet-search,
-.sheet-app .year-month-card,
-.sheet-app .edit-entry-modal,
-.sheet-app .salary-editor-modal,
-.sheet-app .month-modal,
-.sheet-app .chart-modal,
-.sheet-app .settings-modal {
-  color: var(--theme-text);
-  background: color-mix(in srgb, var(--theme-card) 28%, var(--theme-background));
-  border-color: var(--theme-line);
-}
-
-.sheet-app .sheet-brand,
-.sheet-app .section-title h1,
-.sheet-app .modal-kicker,
-.sheet-app .month-modal h2,
-.sheet-app .salary-editor-modal h2,
-.sheet-app .chart-heading h2,
-.sheet-app .settings-modal h2,
-.sheet-app .year-overview-heading h2 {
-  color: var(--theme-text);
-}
-
-.sheet-app .sheet-tabs button,
-.sheet-app .top-icon,
-.sheet-app .section-title p,
-.sheet-app .sheet-brand small,
-.sheet-app .month-modal p,
-.sheet-app .salary-editor-modal p,
-.sheet-app .chart-heading p,
-.sheet-app .settings-modal p,
-.sheet-app .year-overview-heading p,
-.sheet-app .no-results,
-.sheet-app .metric span,
-.sheet-app .metric-edit-hint,
-.sheet-app .export-panel span,
-.sheet-app .palette-section p,
-.sheet-app .alert-email-section p {
-  color: var(--theme-muted);
-}
-
-.sheet-app .sheet-tabs button:hover,
-.sheet-app .sheet-tabs button.selected,
-.sheet-app .sheet-bottom-nav button.selected,
-.sheet-app .new-month-button,
-.sheet-app .undo-button,
-.sheet-app .archived-toggle,
-.sheet-app .palette-reset,
-.sheet-app .chart-action,
-.sheet-app .row-actions button:first-child {
-  color: var(--theme-primary);
-}
-
-.sheet-app .sheet-tabs button:hover,
-.sheet-app .sheet-tabs button.selected,
-.sheet-app .sheet-bottom-nav button.selected,
-.sheet-app .top-icon:hover,
-.sheet-app .metric-editable:hover,
-.sheet-app .new-month-button,
-.sheet-app .undo-button,
-.sheet-app .archived-toggle,
-.sheet-app .export-message,
-.sheet-app .month-chip,
-.sheet-app .year-month-index,
-.sheet-app .year-summary-fields .year-leftover,
-.sheet-app .settings-close {
-  background: var(--theme-soft);
-}
-
-.sheet-app .sheet-topbar,
-.sheet-app .sheet-tabs,
-.sheet-app .sheet-message,
-.sheet-app .register-card,
-.sheet-app .history-table,
-.sheet-app .category-card,
-.sheet-app .export-panel,
-.sheet-app .settings-list,
-.sheet-app .palette-section,
-.sheet-app .alert-email-section,
-.sheet-app .year-month-card,
-.sheet-app .sheet-input,
-.sheet-app .export-month-select,
-.sheet-app .category-edit-row input,
-.sheet-app .category-add input,
-.sheet-app .edit-entry-modal input {
-  border-color: var(--theme-line);
-}
-
-.sheet-app .welcome-strip,
-.sheet-app .register-card,
-.sheet-app .export-panel {
-  background: color-mix(in srgb, var(--theme-card) 82%, var(--theme-background));
-}
-
-.sheet-app .field-label,
-.sheet-app .palette-title,
-.sheet-app .welcome-copy,
-.sheet-app .welcome-copy strong,
-.sheet-app .metric strong,
-.sheet-app .table-row strong,
-.sheet-app .export-panel strong,
-.sheet-app .chart-total strong,
-.sheet-app .year-month-card b,
-.sheet-app .year-summary-fields .year-leftover strong {
-  color: var(--theme-primary);
-}
-
-.sheet-app .sheet-input,
-.sheet-app .export-month-select,
-.sheet-app .category-edit-row input,
-.sheet-app .category-add input,
-.sheet-app .edit-entry-modal input {
-  color: var(--theme-text);
-  background: color-mix(in srgb, white 68%, var(--theme-background));
-}
-
-.sheet-app .sheet-input:focus,
-.sheet-app .year-month-card:hover,
-.sheet-app .year-month-card.active {
-  border-color: var(--theme-primary);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--theme-primary) 14%, transparent);
-}
-
-.sheet-app .table-row,
-.sheet-app .category-item,
-.sheet-app .settings-row,
-.sheet-app .year-month-card,
-.sheet-app .month-chip,
-.sheet-app .archive-note,
-.sheet-app .archive-history {
-  border-color: var(--theme-line);
-  color: var(--theme-muted);
-}
-
-.sheet-app .table-row:hover,
-.sheet-app .category-item:hover {
-  background: var(--theme-soft);
-}
-
-.sheet-app .sheet-message,
-.sheet-app .export-message {
-  color: var(--theme-primary);
-  background: var(--theme-soft);
-  border-color: var(--theme-line);
-}
-
-.sheet-app .modal-cancel,
-.sheet-app .settings-close {
-  color: var(--theme-muted);
-  background: var(--theme-soft);
-}
-
-.sheet-app .row-actions button:last-child,
-.sheet-app .category-edit-row button,
-.sheet-app .danger-button {
-  color: var(--theme-danger);
-  background: var(--theme-danger-soft);
-}
-
-.sheet-app .sheet-bottom-nav {
-  border-color: var(--theme-line);
-  background: color-mix(in srgb, var(--theme-background) 94%, white);
-}
-
-body:has(.sheet-app) {
-  background: color-mix(in srgb, var(--theme-background) 72%, var(--theme-card));
-}
-
 
 /* Correção final da Gestão 2026: cartões legíveis, duas colunas e somente rolagem vertical */
 @media (max-width: 430px) {
@@ -1159,6 +975,7 @@ body:has(.sheet-app) {
   .year-month-card.editing .year-summary-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 }
 
+
 /* Registro respeita o painel inferior fixo, como o Painel inicial */
 @media (max-width: 430px) {
   .register-view { padding-bottom: 78px; }
@@ -1230,222 +1047,26 @@ body:has(.sheet-app) {
   .year-month-card { width: 100% !important; }
 }
 
-.sheet-app {
-  --theme-muted: color-mix(in srgb, var(--theme-text) 62%, var(--theme-background));
-  --theme-line: color-mix(in srgb, var(--theme-text) 16%, var(--theme-background));
-  --theme-soft: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-background));
-  --theme-surface: color-mix(in srgb, var(--theme-card) 28%, var(--theme-background));
-}
 
-body,
-html {
-  color: var(--theme-text) !important;
-  background: var(--theme-background) !important;
+/* Paleta: o nome selecionado e os nomes das pessoas devem acompanhar a cor escolhida */
+.sheet-app .person-switcher {
+  color: var(--theme-text, #2f3c2d) !important;
+  background: var(--theme-card, #e4f5df) !important;
+  border: 1px solid color-mix(in srgb, var(--theme-primary, #2e6f25) 35%, transparent) !important;
+  border-radius: 9px;
+  padding: 5px 9px;
+  font-weight: 800;
+  outline: none;
 }
-
-.sheet-topbar,
-.sheet-tabs,
-.history-table,
-.category-card,
-.sheet-search,
-.settings-modal,
-.salary-editor-modal,
-.month-modal,
-.chart-modal,
-.year-overview-modal,
-.edit-entry-modal,
-.year-month-card,
-.palette-color-row,
-.year-summary-fields input {
-  color: var(--theme-text) !important;
-  background: var(--theme-surface) !important;
-  border-color: var(--theme-line) !important;
+.sheet-app .person-switcher:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary, #2e6f25) 22%, transparent);
 }
-
-.sheet-app .sheet-logo,
-.sheet-app .sheet-tabs button.selected,
-.sheet-app .sheet-bottom-nav button.selected,
-.sheet-app .green-action,
-.sheet-app .register-button,
-.sheet-app .modal-confirm,
-.sheet-app .settings-done,
-.sheet-app .table-head,
-.sheet-app .category-card h2 {
-  color: var(--theme-background) !important;
-  background: var(--theme-primary) !important;
+.sheet-app .person-switcher option {
+  color: var(--theme-text, #2f3c2d);
+  background: var(--theme-card, #e4f5df);
 }
-
-.sheet-app .welcome-strip,
-.sheet-app .register-card,
-.sheet-app .light-action,
-.sheet-app .chart-action,
-.sheet-app .month-chip,
-.sheet-app .export-panel,
-.sheet-app .year-summary-values .year-leftover,
-.sheet-app .year-month-index,
-.sheet-app .palette-reset,
-.sheet-app .undo-button,
-.sheet-app .new-month-button,
-.sheet-app .top-icon:hover,
-.sheet-app .sheet-tabs button:hover,
-.sheet-app .sheet-message,
-.sheet-app .export-message {
-  color: var(--theme-primary) !important;
-  background: var(--theme-soft) !important;
-  border-color: var(--theme-line) !important;
-}
-
-.sheet-app h1,
-.sheet-app h2,
-.sheet-app h3,
-.sheet-app p,
-.sheet-app label,
-.sheet-app span,
-.sheet-app strong,
-.sheet-app .table-row,
-.sheet-app .category-item,
-.sheet-app .year-summary-values span,
-.sheet-app .section-title > span,
-.sheet-app .field-label,
-.sheet-app .palette-title,
-.sheet-app .year-edit-button {
-  color: var(--theme-text) !important;
-}
-
-.sheet-app .sheet-tabs button,
-.sheet-app .top-icon,
-.sheet-app .sheet-brand small,
-.sheet-app .section-title p,
-.sheet-app .metric span,
-.sheet-app .metric-edit-hint,
-.sheet-app .no-results,
-.sheet-app .year-summary-values span {
-  color: var(--theme-muted) !important;
-}
-
-.sheet-app .welcome-copy strong,
-.sheet-app .metric strong,
-.sheet-app .field-label,
-.sheet-app .palette-title,
-.sheet-app .year-edit-button,
-.sheet-app .year-summary-values span strong,
-.sheet-app .chart-total strong,
-.sheet-app .export-panel strong {
-  color: var(--theme-primary) !important;
-}
-
-.sheet-app .sheet-input,
-.sheet-app .export-month-select,
+.sheet-app .history-row > span:first-child,
 .sheet-app .category-edit-row input,
-.sheet-app .category-add input,
-.sheet-app .edit-entry-modal input {
-  color: var(--theme-text) !important;
-  background: var(--theme-background) !important;
-  border-color: var(--theme-line) !important;
-}
-
-.sheet-app .table-row,
-.sheet-app .category-item,
-.sheet-app .settings-row,
-.sheet-app .year-month-card,
-.sheet-app .settings-heading {
-  border-color: var(--theme-line) !important;
-}
-
-.sheet-app .table-row:hover,
-.sheet-app .category-item:hover,
-.sheet-app .year-month-card:hover,
-.sheet-app .year-month-card.active,
-.sheet-app .year-month-card.editing {
-  background: var(--theme-soft) !important;
-  border-color: var(--theme-primary) !important;
-}
-
-.sheet-app .row-actions button:first-child,
-.sheet-app .category-add button,
-.sheet-app .archived-toggle,
-.sheet-app .settings-row input:checked + .toggle-track {
-  color: var(--theme-background) !important;
-  background: var(--theme-primary) !important;
-}
-
-.sheet-app .row-actions button:last-child,
-.sheet-app .category-edit-row button {
-  color: var(--theme-text) !important;
-  background: color-mix(in srgb, var(--theme-text) 10%, var(--theme-background)) !important;
-}
-
-.sheet-app .recharts-cartesian-grid-horizontal line,
-.sheet-app .recharts-cartesian-grid-vertical line {
-  stroke: var(--theme-line) !important;
-}
-
-.sheet-app .recharts-bar-rectangle path,
-.sheet-app .recharts-bar-rectangle rect {
-  fill: var(--theme-primary) !important;
-}
-
-.sheet-app .recharts-text,
-.sheet-app .recharts-label {
-  fill: var(--theme-muted) !important;
-}
-
-/* Cobertura dos elementos que tinham cores próprias fora dos cartões principais. */
-.sheet-app {
-  background: var(--theme-background) !important;
-}
-.sheet-app::before {
-  background:
-    radial-gradient(circle at 86% 14%, color-mix(in srgb, var(--theme-card) 72%, transparent), transparent 44%),
-    linear-gradient(180deg, color-mix(in srgb, var(--theme-card) 45%, transparent), transparent) !important;
-}
-.sheet-app .settings-heading,
-.sheet-app .palette-preview,
-.sheet-app .sheet-search,
-.sheet-app .metric-editable:hover,
-.sheet-app .metric-editable:focus-visible,
-.sheet-app .category-edit-row:hover,
-.sheet-app .category-add,
-.sheet-app .history-table .table-row,
-.sheet-app .year-month-card-heading,
-.sheet-app .sheet-bottom-nav {
-  background: var(--theme-surface) !important;
-  border-color: var(--theme-line) !important;
-}
-.sheet-app .settings-close,
-.sheet-app .row-actions button,
-.sheet-app .category-edit-row button,
-.sheet-app .palette-preview span,
-.sheet-app .year-edit-button,
-.sheet-app .new-month-button {
-  border-color: var(--theme-line) !important;
-}
-.sheet-app .row-actions button:first-child,
-.sheet-app .category-add button,
-.sheet-app .archived-toggle,
-.sheet-app .new-month-button {
-  color: var(--theme-background) !important;
-  background: var(--theme-primary) !important;
-}
-.sheet-app .row-actions button:last-child,
-.sheet-app .category-edit-row button,
-.sheet-app .palette-color-row input[type="color"] {
-  color: var(--theme-text) !important;
-  background: var(--theme-soft) !important;
-}
-.sheet-app .category-card,
-.sheet-app .year-month-card,
-.sheet-app .history-table,
-.sheet-app .sheet-search,
-.sheet-app .export-panel,
-.sheet-app .settings-row,
-.sheet-app .palette-color-row {
-  border-color: var(--theme-line) !important;
-}
-.sheet-app .year-month-index,
-.sheet-app .year-summary-values .year-leftover,
-.sheet-app .sheet-message,
-.sheet-app .export-message {
-  color: var(--theme-primary) !important;
-  background: var(--theme-soft) !important;
+.sheet-app .category-item span {
+  color: var(--theme-text, #2f3c2d);
 }
