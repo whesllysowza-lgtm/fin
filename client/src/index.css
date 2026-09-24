@@ -151,3 +151,54 @@ body { background: radial-gradient(circle at 15% 5%, #f6fff3 0, #eaf3e7 32%, #df
 .settings-modal { max-height: calc(100dvh - 28px); overflow-y: auto; scrollbar-gutter: stable; }
 .settings-modal .settings-done { position: sticky; bottom: 0; box-shadow: 0 -8px 16px rgba(255,255,255,.9); }
 @media (max-width: 720px) { .settings-backdrop { padding: 14px; align-items: start; }.settings-modal { width: min(100%, 430px); max-height: calc(100dvh - 28px); margin: auto 0; padding: 19px 16px; } }
+
+
+/* Experiência mobile: leitura, toque e rolagem sem cortes */
+@media (max-width: 720px) {
+  html, body, #root { min-width: 0; width: 100%; overflow-x: hidden; }
+  body { margin: 0; background: #eef5eb; }
+  .sheet-app { width: 100%; max-width: none; min-height: 100dvh; border-radius: 0; box-shadow: none; }
+  .sheet-topbar { position: sticky; top: 0; z-index: 12; display: flex; min-height: 66px; height: auto; padding: 10px 13px; gap: 8px; }
+  .sheet-logo { width: 34px; height: 34px; border-radius: 11px; flex: 0 0 auto; }
+  .sheet-brand { gap: 9px; min-width: 0; flex: 1 1 auto; }
+  .sheet-brand strong { font-size: 14px; line-height: 1.1; }
+  .sheet-brand small { font-size: 9px; }
+  .top-actions { display: flex; flex: 0 0 auto; gap: 5px; }
+  .new-month-button { min-height: 34px; padding: 0 9px; font-size: 10px; }
+  .undo-button, .top-actions > button:last-child { width: 34px; height: 34px; }
+  .sheet-main { padding: 12px 12px 28px; }
+  .sheet-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; padding: 4px; border-radius: 14px; overflow: visible; }
+  .sheet-tabs button { min-height: 38px; padding: 0 2px; font-size: 9px; letter-spacing: -.02em; white-space: nowrap; }
+  .month-chip { margin-top: 12px; min-height: 34px; padding: 0 10px; font-size: 10px; }
+  .welcome-strip, .welcome-strip.without-salary { grid-template-columns: 1fr 1fr; gap: 8px; min-height: 0; padding: 15px 13px; border-radius: 18px; }
+  .welcome-copy { grid-column: 1 / -1; padding-bottom: 4px; }
+  .welcome-copy strong { font-size: 18px; }
+  .welcome-copy select { max-width: 100%; font-size: 11px; }
+  .metric { min-width: 0; padding: 9px 5px; border-left: 0; border-top: 1px solid rgba(112,164,99,.18); }
+  .metric label { font-size: 9px; }
+  .metric strong { font-size: 13px; white-space: nowrap; }
+  .metric-editable { padding: 0; }
+  .metric-edit-hint { display: block; margin: 2px 0 0; font-size: 7px; }
+  .dashboard-actions { grid-template-columns: 1fr; gap: 8px; margin-top: 14px; }
+  .green-action, .light-action, .chart-action { min-height: 45px; border-radius: 13px; font-size: 11px; }
+  .section-title { gap: 8px; }
+  .section-title h1 { font-size: 22px; }
+  .register-card { padding: 15px 13px; border-radius: 17px; }
+  .form-grid { grid-template-columns: 1fr; gap: 10px; }
+  .sheet-input { min-height: 42px; font-size: 14px; }
+  .register-button { min-height: 46px; width: 100%; }
+  .history-table { overflow-x: auto; }
+  .history-table .table-head, .history-table .table-row { min-width: 560px; }
+  .category-columns { grid-template-columns: 1fr; }
+  .sheet-bottom-nav { position: sticky; bottom: 0; z-index: 11; min-height: 58px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .settings-modal, .salary-editor-modal, .month-modal, .chart-modal, .year-overview-modal { width: calc(100vw - 24px); max-width: none; }
+  .palette-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
+}
+@media (max-width: 390px) {
+  .sheet-topbar { padding-left: 10px; padding-right: 10px; }
+  .new-month-button { max-width: 70px; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; }
+  .sheet-tabs button { font-size: 8px; }
+  .welcome-copy strong { font-size: 16px; }
+  .metric strong { font-size: 12px; }
+  .palette-grid { grid-template-columns: 1fr; }
+}
