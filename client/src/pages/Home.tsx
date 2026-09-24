@@ -95,6 +95,8 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [showNewMonthConfirm, setShowNewMonthConfirm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSalaryEditor, setShowSalaryEditor] = useState(false);
+  const [salaryDraft, setSalaryDraft] = useState("");
   const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>(() => JSON.parse(localStorage.getItem("wesly-indicator-settings") || "null") || { Wesly: { salary: true, expenses: true, leftover: true, card: true }, Pai: { salary: false, expenses: true, leftover: true, card: true }, Mãe: { salary: false, expenses: true, leftover: true, card: true }, Vanessa: { salary: false, expenses: true, leftover: true, card: true }, Cristiano: { salary: false, expenses: true, leftover: true, card: true }, Vô: { salary: false, expenses: true, leftover: true, card: true } });
   const [cloudLoaded, setCloudLoaded] = useState(false);
 
@@ -145,6 +147,26 @@ export default function Home() {
   const notify = (text: string) => {
     setMessage(text);
     window.setTimeout(() => setMessage(""), 2400);
+  };
+
+  const openSalaryEditor = () => {
+    if (selectedPerson !== "Wesly") return;
+    setSalaryDraft(String(summary.salary).replace(".", ","));
+    setShowSalaryEditor(true);
+  };
+
+  const saveSalary = () => {
+    const salary = Number(salaryDraft.replace(/[^0-9,.-]/g, "").replace(",", "."));
+    if (!Number.isFinite(salary) || salary < 0) {
+      notify("Informe um salário válido.");
+      return;
+    }
+    setSummaries((current) => ({
+      ...current,
+      [currentMonth]: { ...(current[currentMonth] || { salary: 0, expenses: 0, card: 0 }), salary },
+    }));
+    setShowSalaryEditor(false);
+    notify(`Salário de ${currentMonth} atualizado.`);
   };
 
   useEffect(() => {
@@ -277,11 +299,12 @@ export default function Home() {
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
         {message && <div className="sheet-message" role="status">{message}</div>}
-        {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} expenses={selectedExpenses} leftover={leftover} card={selectedCard} selectedPerson={selectedPerson} onPersonChange={setSelectedPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} />}
+        {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} expenses={selectedExpenses} leftover={leftover} card={selectedCard} selectedPerson={selectedPerson} onPersonChange={setSelectedPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} />}
         {tab === "REGISTRO" && <Register form={form} setForm={setForm} onSubmit={register} people={people} origins={origins} expenses={expenses} />}
         {tab === "HISTÓRICO" && <HistoryView entries={filteredEntries} allEntries={selectedEntries} search={search} setSearch={setSearch} month={currentMonth} archivedMonths={archivedMonths} archivedData={archivedData} summaries={summaries} person={selectedPerson} onEdit={editEntry} onDelete={deleteEntry} />}
         {tab === "CATEGORIAS" && <CategoriesView people={people} origins={origins} expenses={expenses} onRename={updateCategory} onAdd={addCategory} onRemove={removeCategory} />}
       </main>
+      {showSalaryEditor && <div className="salary-editor-backdrop" role="presentation" onClick={() => setShowSalaryEditor(false)}><div className="salary-editor-modal" role="dialog" aria-modal="true" aria-labelledby="salary-editor-title" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR SALÁRIO</span><h2 id="salary-editor-title">Salário de {currentMonth}</h2><p>Altere o valor deste mês. O salário ficará salvo no histórico mensal do Supabase.</p><label className="field-label">VALOR DO SALÁRIO<input className="sheet-input" inputMode="decimal" autoFocus value={salaryDraft} onChange={(event) => setSalaryDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveSalary(); }} /></label><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowSalaryEditor(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveSalary}>Salvar salário</button></div></div></div>}
       {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Regras da planilha: Wesly possui salário e sobra. Os demais perfis mostram apenas despesas e cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className="settings-row" key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} readOnly disabled /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><button type="button" className="settings-done" onClick={() => setShowSettings(false)}>Concluir</button></div></div>}
       {showNewMonthConfirm && <div className="month-modal-backdrop" role="presentation"><div className="month-modal" role="dialog" aria-modal="true" aria-labelledby="new-month-title"><span className="modal-kicker">ARQUIVAR MÊS</span><h2 id="new-month-title">Começar um novo mês?</h2><p>Os lançamentos de <strong>{currentMonth}</strong> serão salvos no histórico e a tela ficará pronta para {nextMonth(currentMonth)}.</p><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowNewMonthConfirm(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={() => { setShowNewMonthConfirm(false); startNewMonth(); }}>Começar novo mês</button></div></div></div>}
       <nav className="sheet-bottom-nav">{[["PAINEL", HomeIcon], ["REGISTRO", Plus], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={19} /><span>{name as string}</span></button>)}</nav>
@@ -289,25 +312,27 @@ export default function Home() {
   );
 }
 
-function Dashboard({ people, settings, month, archivedMonths, salary, expenses, leftover, card, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; expenses: number; leftover: number; card: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void }) {
+function Dashboard({ people, settings, month, archivedMonths, salary, expenses, leftover, card, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth, onEditSalary }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; expenses: number; leftover: number; card: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void; onEditSalary: () => void }) {
   return (
     <section className="panel-view">
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
       <div className={`welcome-strip ${!settings.salary ? "without-salary" : ""}`}>
         <div className="welcome-copy"><span>Bem vindo,</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome">{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
-        {settings.salary && <Metric label="Salário" value={salary} />}
+        {settings.salary && <Metric label="Salário" value={salary} editable onClick={onEditSalary} />}
         {settings.expenses && <Metric label="Despesas" value={expenses} />}
         {settings.leftover && <Metric label="Sobrou" value={leftover} />}
         {settings.card && <Metric label="Gastos com cartão" value={card} />}
       </div>
       <div className="dashboard-actions"><button type="button" onClick={(event) => { event.preventDefault(); onRegister(); }} className="green-action"><CirclePlus size={19} /> Registrar despesa</button><button type="button" onClick={(event) => { event.preventDefault(); onHistory(); }} className="light-action"><History size={18} /> Ver histórico</button></div>
-      <div className="mobile-summary">{settings.salary && <Metric label="Salário" value={salary} />}{settings.expenses && <Metric label="Despesas" value={expenses} />}{settings.leftover && <Metric label="Sobrou" value={leftover} />}{settings.card && <Metric label="Gastos com cartão" value={card} />}</div>
-      {archivedMonths.length > 0 && <div className="archive-note">Meses salvos: {archivedMonths.join(" • ")}</div>}
+      <div className="mobile-summary">{settings.salary && <Metric label="Salário" value={salary} editable onClick={onEditSalary} />}{settings.expenses && <Metric label="Despesas" value={expenses} />}{settings.leftover && <Metric label="Sobrou" value={leftover} />}{settings.card && <Metric label="Gastos com cartão" value={card} />}</div>
     </section>
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) { return <div className="metric"><span>{label}</span><strong>{brl.format(value)}</strong></div>; }
+function Metric({ label, value, editable, onClick }: { label: string; value: number; editable?: boolean; onClick?: () => void }) {
+  const content = <><span>{label}{editable && <small className="metric-edit-hint"> editar</small>}</span><strong>{brl.format(value)}</strong></>;
+  return editable ? <button type="button" className="metric metric-editable" onClick={onClick} aria-label={`Editar ${label}`}>{content}</button> : <div className="metric">{content}</div>;
+}
 
 function Register({ form, setForm, onSubmit, people, origins, expenses }: { people: string[]; origins: string[]; expenses: string[]; form: { person: string; origin: string; expense: string; value: string }; setForm: React.Dispatch<React.SetStateAction<{ person: string; origin: string; expense: string; value: string }>>; onSubmit: (event: FormEvent) => void }) {
   return <section className="register-view"><div className="section-title"><span>REGISTRO</span><h1>Adicionar despesa</h1><p>Preencha os campos abaixo e toque em registrar.</p></div><form className="register-card" onSubmit={onSubmit}><Field label="PESSOA"><Select value={form.person} placeholder="Selecione uma pessoa" options={people} onChange={(value) => setForm((current) => ({ ...current, person: value }))} /></Field><Field label="ORIGEM"><Select value={form.origin} placeholder="Selecione a origem" options={origins} onChange={(value) => setForm((current) => ({ ...current, origin: value }))} /></Field><Field label="DESPESA"><Select value={form.expense} placeholder="Selecione a despesa" options={expenses} onChange={(value) => setForm((current) => ({ ...current, expense: value }))} /></Field><label className="field-label">VALOR<input className="sheet-input" inputMode="decimal" placeholder="R$ 0,00" value={form.value} onChange={(event) => setForm((current) => ({ ...current, value: event.target.value }))} /></label><button className="register-button" type="submit">REGISTRAR</button></form></section>;
