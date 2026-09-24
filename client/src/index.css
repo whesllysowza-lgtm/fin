@@ -144,3 +144,10 @@ body { background: radial-gradient(circle at 15% 5%, #f6fff3 0, #eaf3e7 32%, #df
 .register-card, .history-table, .category-columns, .export-panel { width: 100%; }.category-columns { align-items: start; }.table-head, .table-row { min-width: 0; }.table-head > *, .table-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 720px) { .sheet-app { width: 100%; max-width: none; }.sheet-topbar { grid-template-columns: minmax(0, 1fr) auto; }.sheet-tabs { grid-template-columns: repeat(4, minmax(80px, 1fr)); overflow-x: auto; }.dashboard-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }.green-action, .light-action, .chart-action { font-size: 10px; padding: 0 5px; white-space: nowrap; }.welcome-strip { grid-template-columns: 1fr 1fr; }.welcome-copy { grid-column: 1 / -1; }.top-actions { gap: 5px; }.top-actions .new-month-button { max-width: 82px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
 @media (max-width: 390px) { .dashboard-actions { grid-template-columns: 1fr; }.green-action, .light-action, .chart-action { min-height: 43px; }.sheet-tabs { grid-template-columns: repeat(4, minmax(73px, 1fr)); }.sheet-brand strong { font-size: 13px; } }
+
+
+/* Modal de configurações: conteúdo completo e botão Concluir acessível */
+.settings-backdrop, .salary-editor-backdrop, .month-modal-backdrop, .chart-backdrop, .year-overview-backdrop { overflow-y: auto; overscroll-behavior: contain; }
+.settings-modal { max-height: calc(100dvh - 28px); overflow-y: auto; scrollbar-gutter: stable; }
+.settings-modal .settings-done { position: sticky; bottom: 0; box-shadow: 0 -8px 16px rgba(255,255,255,.9); }
+@media (max-width: 720px) { .settings-backdrop { padding: 14px; align-items: start; }.settings-modal { width: min(100%, 430px); max-height: calc(100dvh - 28px); margin: auto 0; padding: 19px 16px; } }
