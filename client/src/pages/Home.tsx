@@ -9,7 +9,7 @@ type IndicatorKey = "salary" | "expenses" | "leftover" | "card";
 type IndicatorSettings = Record<IndicatorKey, boolean>;
 type ThemePalette = { primary: string; background: string; card: string; text: string };
 
-const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
+const defaultPalette: ThemePalette = { primary: "#285943", background: "#f5f6f0", card: "#e4eee5", text: "#24352e" };
 type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string };
 
 const initialEntries: Entry[] = [
@@ -116,6 +116,20 @@ export default function Home() {
   const lastSnapshotRef = useRef<AppSnapshot | null>(null);
   const undoSnapshotRef = useRef<AppSnapshot | null>(null);
   const skipHistoryRef = useRef(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--theme-primary", palette.primary);
+    root.style.setProperty("--theme-background", palette.background);
+    root.style.setProperty("--theme-card", palette.card);
+    root.style.setProperty("--theme-text", palette.text);
+    return () => {
+      root.style.removeProperty("--theme-primary");
+      root.style.removeProperty("--theme-background");
+      root.style.removeProperty("--theme-card");
+      root.style.removeProperty("--theme-text");
+    };
+  }, [palette]);
 
   useEffect(() => {
     let active = true;
