@@ -974,3 +974,10 @@ body { background: #edf5ea; }
   .year-summary-values .year-leftover { padding: 3px 4px; }
   .year-month-card.editing .year-summary-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 }
+
+
+/* Registro respeita o painel inferior fixo, como o Painel inicial */
+@media (max-width: 430px) {
+  .register-view { padding-bottom: 78px; }
+  .register-card { margin-bottom: 8px; }
+}
