@@ -431,7 +431,12 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
   const startEdit = (archiveMonth: string, entry: Entry) => { setEditing({ month: archiveMonth, entry }); setDraft({ ...entry }); };
   const saveEdit = () => { if (editing && draft && draft.person.trim() && draft.origin.trim() && draft.expense.trim() && draft.value > 0) { onEdit(editing.month, { ...draft, person: draft.person.trim(), origin: draft.origin.trim(), expense: draft.expense.trim() }); setEditing(null); setDraft(null); } };
   const rows = (items: Entry[], rowMonth: string) => items.map((entry) => <div className="table-row history-row" key={`${rowMonth}-${entry.id}`}><span>{entry.person}</span><span>{entry.origin}</span><span>{entry.expense}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions"><button type="button" onClick={() => startEdit(rowMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" onClick={() => onDelete(rowMonth, entry.id)} aria-label="Apagar lançamento"><Trash2 size={14} /></button></div></div>);
-  const monthOptions = [month, ...Object.keys(archivedData).filter((item) => item !== month)];
+  const legacyMonthsHiddenFromExport = new Set(["Junho 2026", "Julho 2026"]);
+  const savedMonths = archivedMonths.filter((savedMonth) => savedMonth !== month && !legacyMonthsHiddenFromExport.has(savedMonth) && Object.prototype.hasOwnProperty.call(archivedData, savedMonth));
+  const monthOptions = [month, ...savedMonths];
+  useEffect(() => {
+    if (!monthOptions.includes(exportMonth)) setExportMonth(month);
+  }, [month, exportMonth, savedMonths.join("|")]);
   const exportEntries = exportMonth === month ? allEntries : (archivedData[exportMonth] || []);
   const exportSpreadsheet = () => {
     const csvRows = [["MÊS", exportMonth], [], ["PESSOA", "ORIGEM", "DESPESA", "VALOR"], ...exportEntries.map((entry) => [entry.person, entry.origin, entry.expense, entry.value.toFixed(2).replace(".", ",")]), [], ["TOTAL", "", "", (summaries[exportMonth]?.expenses ?? exportEntries.reduce((sum, entry) => sum + entry.value, 0)).toFixed(2).replace(".", ",")]];
