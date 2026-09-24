@@ -235,3 +235,32 @@ body { background: radial-gradient(circle at 15% 5%, #f6fff3 0, #eaf3e7 32%, #df
   .palette-color-row code { font-size: 10px; }
   .palette-reset { min-height: 36px; margin-top: 12px; font-size: 12px; }
 }
+
+
+/* Produto mobile-first: o sistema é tratado como um aplicativo de celular */
+html, body, #root { min-width: 0; }
+body { background: #edf5ea; }
+.sheet-app { width: 100%; max-width: 430px; min-height: 100dvh; margin: 0 auto; border-radius: 0; box-shadow: 0 0 30px rgba(31,65,28,.12); }
+.sheet-topbar { min-height: 68px; height: auto; padding: 10px 13px; }
+.sheet-main { padding: 13px 12px 28px; }
+.sheet-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; padding: 4px; border-radius: 14px; }
+.sheet-tabs button { min-height: 39px; padding: 0 2px; font-size: 9px; white-space: nowrap; }
+.welcome-strip, .welcome-strip.without-salary { grid-template-columns: 1fr 1fr; gap: 8px; min-height: 0; padding: 15px 13px; border-radius: 18px; }
+.welcome-copy { grid-column: 1 / -1; padding-bottom: 4px; }
+.welcome-copy strong { font-size: 18px; }
+.metric { min-width: 0; padding: 9px 5px; border-left: 0; border-top: 1px solid rgba(112,164,99,.18); }
+.metric label { font-size: 9px; }.metric strong { font-size: 13px; white-space: nowrap; }
+.dashboard-actions { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 14px; }
+.green-action, .light-action, .chart-action { width: 100%; min-height: 46px; border-radius: 13px; font-size: 11px; }
+.form-grid, .category-columns { grid-template-columns: 1fr; }
+.sheet-input { min-height: 43px; font-size: 14px; }
+.register-button { width: 100%; min-height: 47px; }
+.history-table { overflow-x: auto; }.history-table .table-head, .history-table .table-row { min-width: 560px; }
+.category-card { width: 100%; min-width: 0; }.category-item, .category-edit-row, .category-add { min-width: 0; }
+.category-item span, .category-edit-row input { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sheet-bottom-nav { position: sticky; bottom: 0; z-index: 20; min-height: 58px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.settings-backdrop, .salary-editor-backdrop, .month-modal-backdrop, .chart-backdrop, .year-overview-backdrop { padding: 12px; align-items: flex-start; overflow-y: auto; }
+.settings-modal, .salary-editor-modal, .month-modal, .chart-modal, .year-overview-modal { width: 100%; max-width: 430px; max-height: calc(100dvh - 24px); margin: auto 0; box-sizing: border-box; }
+.palette-grid { grid-template-columns: 1fr; gap: 10px; }.palette-color-row { min-height: 68px; grid-template-columns: 48px minmax(0,1fr); padding: 10px 12px; }.palette-color-row input[type="color"] { width: 48px; height: 48px; }
+.year-month-grid { grid-template-columns: 1fr; }
+@media (min-width: 431px) { .sheet-app { border-radius: 22px; margin-top: 14px; margin-bottom: 14px; min-height: calc(100dvh - 28px); } }
