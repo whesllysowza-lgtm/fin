@@ -33,6 +33,14 @@ const defaultPeople = ["Wesly", "Pai", "Mãe", "Vanessa", "Cristiano", "Vô"];
 const defaultOrigins = ["CARTÃO", "DESPESAS SIMPLES"];
 const defaultExpenses = ["CASA ok", "ÁGUA ok", "INTERNET", "PAI", "RÉMEDIO", "RÉMEDIO DA PRESSÃO", "MOTO", "ACADEMIA", "FATURA"];
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const parseMoney = (raw: string | number): number => {
+  const input = String(raw).trim();
+  if (!input) return NaN;
+  const comma = input.lastIndexOf(",");
+  const dot = input.lastIndexOf(".");
+  if (comma > dot) return Number(input.split(".").join("").replace(",", "."));
+  return Number(input.split(",").join(""));
+};
 const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const legacyStorageKeys = ["wesly-people", "wesly-origins", "wesly-expenses", "wesly-current-month", "wesly-archived-months", "wesly-archived-data", "wesly-current-entries", "wesly-monthly-summaries", "wesly-indicator-settings"];
 
@@ -252,7 +260,7 @@ export default function Home() {
   };
 
   const saveSalary = () => {
-    const salary = Number(salaryDraft.replace(/[^0-9,.-]/g, "").replace(",", "."));
+    const salary = parseMoney(salaryDraft.replace(/[^0-9,.-]/g, ""));
     if (!Number.isFinite(salary) || salary < 0) {
       notify("Informe um salário válido.");
       return;
@@ -376,7 +384,7 @@ export default function Home() {
 
   const register = (event: FormEvent) => {
     event.preventDefault();
-    const value = Number(form.value.replace(",", "."));
+    const value = parseMoney(form.value);
     if (!form.person || !form.origin || !form.expense || !value) {
       notify("Preencha pessoa, origem, despesa e valor.");
       return;
@@ -438,7 +446,7 @@ function Dashboard({ people, settings, month, archivedMonths, salary, expenses, 
 function YearOverview({ year, currentMonth, summaries, onUpdateSummary, onClose }: { year: number; currentMonth: string; summaries: Record<string, MonthlySummary>; onUpdateSummary: (month: string, field: "salary" | "expenses" | "card", value: number) => void; onClose: () => void }) {
   const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const [editingMonth, setEditingMonth] = useState<string | null>(null);
-  return <div className="year-overview-backdrop" role="presentation" onClick={onClose}><div className="year-overview-modal" role="dialog" aria-modal="true" aria-labelledby="year-overview-title" onClick={(event) => event.stopPropagation()}><div className="year-overview-heading"><div><span className="modal-kicker">RESUMO ANUAL</span><h2 id="year-overview-title">Gestão de {year}</h2><p>Confira os cálculos de cada mês. Use <strong>Editar</strong> apenas quando precisar corrigir um valor.</p></div><button type="button" className="settings-close" onClick={onClose} aria-label="Fechar resumo anual"><X size={18} /></button></div><div className="year-month-grid">{months.map((month, index) => { const key = `${month} ${year}`; const summary = summaries[key] || { salary: 0, expenses: 0, card: 0 }; const leftover = summary.salary - summary.expenses; const isEditing = editingMonth === key; return <div className={`year-month-card ${key === currentMonth ? "active" : ""} ${isEditing ? "editing" : ""}`} key={month}><div className="year-month-card-heading"><span className="year-month-index">{String(index + 1).padStart(2, "0")}</span><strong>{month}</strong><button type="button" className="year-edit-button" onClick={() => setEditingMonth(isEditing ? null : key)}>{isEditing ? "Fechar" : "Editar"}</button></div>{isEditing ? <div className="year-summary-fields"><label>Salário<input type="number" min="0" step="0.01" value={summary.salary} onChange={(event) => onUpdateSummary(key, "salary", Number(event.target.value) || 0)} /></label><label>Despesas<input type="number" min="0" step="0.01" value={summary.expenses} onChange={(event) => onUpdateSummary(key, "expenses", Number(event.target.value) || 0)} /></label><label>Cartão<input type="number" min="0" step="0.01" value={summary.card} onChange={(event) => onUpdateSummary(key, "card", Number(event.target.value) || 0)} /></label></div> : <div className="year-summary-values"><span>Salário <strong>{brl.format(summary.salary)}</strong></span><span>Despesas <strong>{brl.format(summary.expenses)}</strong></span><span>Cartão <strong>{brl.format(summary.card)}</strong></span><span className="year-leftover">Sobra <strong>{brl.format(leftover)}</strong></span></div>}</div>; })}</div><button type="button" className="settings-done" onClick={onClose}><CalendarDays size={16} /> Fechar resumo</button></div></div>;
+  return <div className="year-overview-backdrop" role="presentation" onClick={onClose}><div className="year-overview-modal" role="dialog" aria-modal="true" aria-labelledby="year-overview-title" onClick={(event) => event.stopPropagation()}><div className="year-overview-heading"><div><span className="modal-kicker">RESUMO ANUAL</span><h2 id="year-overview-title">Gestão de {year}</h2><p>Confira os cálculos de cada mês. Use <strong>Editar</strong> apenas quando precisar corrigir um valor.</p></div><button type="button" className="settings-close" onClick={onClose} aria-label="Fechar resumo anual"><X size={18} /></button></div><div className="year-month-grid">{months.map((month, index) => { const key = `${month} ${year}`; const summary = summaries[key] || { salary: 0, expenses: 0, card: 0 }; const leftover = summary.salary - summary.expenses; const isEditing = editingMonth === key; return <div className={`year-month-card ${key === currentMonth ? "active" : ""} ${isEditing ? "editing" : ""}`} key={month}><div className="year-month-card-heading"><span className="year-month-index">{String(index + 1).padStart(2, "0")}</span><strong>{month}</strong><button type="button" className="year-edit-button" onClick={() => setEditingMonth(isEditing ? null : key)}>{isEditing ? "Fechar" : "Editar"}</button></div>{isEditing ? <div className="year-summary-fields"><label>Salário<input type="text" inputMode="decimal" value={summary.salary} onChange={(event) => onUpdateSummary(key, "salary", parseMoney(event.target.value) || 0)} /></label><label>Despesas<input type="number" min="0" step="0.01" value={summary.expenses} onChange={(event) => onUpdateSummary(key, "expenses", Number(event.target.value) || 0)} /></label><label>Cartão<input type="number" min="0" step="0.01" value={summary.card} onChange={(event) => onUpdateSummary(key, "card", Number(event.target.value) || 0)} /></label></div> : <div className="year-summary-values"><span>Salário <strong>{brl.format(summary.salary)}</strong></span><span>Despesas <strong>{brl.format(summary.expenses)}</strong></span><span>Cartão <strong>{brl.format(summary.card)}</strong></span><span className="year-leftover">Sobra <strong>{brl.format(leftover)}</strong></span></div>}</div>; })}</div><button type="button" className="settings-done" onClick={onClose}><CalendarDays size={16} /> Fechar resumo</button></div></div>;
 }
 
 function ChartModal({ month, people, entries, onClose }: { month: string; people: string[]; entries: Entry[]; onClose: () => void }) {
