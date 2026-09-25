@@ -1244,270 +1244,34 @@ body { background: #edf5ea; }
 .finance-mascot-worried .mascot-body::before { background: #e9a45c; }.finance-mascot-worried .mascot-body::after { content: "!"; background: #b98236; }.finance-mascot-happy .mascot-body::before { background: #f4c95d; }.finance-mascot-neutral .mascot-body::after { content: "..."; background: #6e8b68; }
 @media (max-width: 430px) { .finance-mascot { min-height: 65px; }.mascot-body { width: 57px; height: 45px; }.mascot-face { width: 26px; height: 26px; } }
 
+/* Painel final: uma coluna real, sem grids laterais e sem resumo duplicado */
+.sheet-app .panel-view > .welcome-strip { display: flex !important; flex-direction: column !important; align-items: stretch !important; width: 100% !important; box-sizing: border-box !important; gap: 0 !important; }
+.sheet-app .panel-view > .welcome-strip .welcome-copy { display: flex !important; width: 100% !important; min-height: 42px; box-sizing: border-box; padding: 6px 6px 12px !important; }
+.sheet-app .panel-view > .welcome-strip .metric { display: flex !important; align-items: center !important; justify-content: space-between !important; width: 100% !important; min-height: 46px !important; box-sizing: border-box !important; border-left: 0 !important; border-top: 1px solid color-mix(in srgb, var(--theme-primary, #2e6f25) 16%, transparent) !important; }
+.sheet-app .panel-view > .dashboard-actions { display: flex !important; flex-direction: column !important; width: 100% !important; gap: 8px !important; }
+.sheet-app .panel-view > .dashboard-actions > button { width: 100% !important; min-height: 44px !important; }
+.sheet-app .panel-view > .mobile-summary { display: none !important; }
 
-/* Regra final mobile: o painel principal deve permanecer em uma única coluna. */
-@media (max-width: 720px) {
-  .sheet-main,
-  .panel-view,
-  .welcome-strip,
-  .welcome-strip.without-salary,
-  .dashboard-actions,
-  .register-card,
-  .category-columns,
-  .form-grid,
-  .mobile-summary {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box;
-  }
+/* Status financeiro compacto no lugar da mascote */
+.balance-face { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; margin: 11px auto 0; padding: 5px 11px; border: 1px solid color-mix(in srgb, var(--theme-primary, #2e6f25) 18%, transparent); border-radius: 999px; color: var(--theme-text, #2f3c2d); background: color-mix(in srgb, var(--theme-card, #e4f5df) 84%, white); }
+.balance-face span { font-size: 20px; line-height: 1; }.balance-face small { font-size: 10px; font-weight: 800; }.balance-face[aria-label*="Atenção"] { border-color: #dfb270; }.balance-face[aria-label*="positivo"] { border-color: #91c688; }
 
-  .welcome-strip,
-  .welcome-strip.without-salary,
-  .dashboard-actions,
-  .form-grid,
-  .category-columns {
-    grid-template-columns: 1fr !important;
-  }
-
-  .welcome-copy,
-  .metric,
-  .dashboard-actions > button,
-  .register-card > *,
-  .category-card {
-    width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box;
-  }
-
-  .mobile-summary { display: none !important; }
-}
-
-
-/* Mascote de status: flutuante, compacto e fora do fluxo do painel. */
-.balance-face {
-  position: fixed;
-  right: max(14px, calc((100vw - 430px) / 2 + 14px));
-  bottom: calc(72px + env(safe-area-inset-bottom));
-  z-index: 18;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: min(250px, calc(100vw - 28px));
-  min-height: 56px;
-  margin: 0;
-  padding: 9px 12px;
-  box-sizing: border-box;
-  border: 1px solid color-mix(in srgb, var(--theme-primary, #2e6f25) 22%, var(--theme-background, #f5f8f3));
-  border-radius: 18px 18px 7px 18px;
-  color: var(--theme-text, #2f3c2d);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--theme-card, #e4f5df) 92%, #fff), var(--theme-background, #f5f8f3));
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--theme-primary, #2e6f25) 10%, transparent);
-  pointer-events: none;
-  animation: balance-float 3.8s ease-in-out infinite;
-}
-.balance-face span { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 13px; background: color-mix(in srgb, var(--theme-primary, #2e6f25) 13%, transparent); font-size: 25px; line-height: 1; }
-.balance-face small { color: color-mix(in srgb, var(--theme-text, #2f3c2d) 78%, transparent); font-size: 11px; font-weight: 800; letter-spacing: .01em; }
-@keyframes balance-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-@media (max-width: 720px) {
-  .sheet-main, .panel-view { overflow: visible !important; }
-  .sheet-main { padding-bottom: 96px !important; }
-  .welcome-strip { overflow: visible !important; }
-  .balance-face { right: 14px; bottom: calc(70px + env(safe-area-inset-bottom)); width: min(230px, calc(100vw - 28px)); }
-}
-@media (prefers-reduced-motion: reduce) { .balance-face { animation: none; } }
-
-
-/* O menu inferior foi removido; a navegação continua disponível no topo. */
-.sheet-bottom-nav { display: none !important; }
-.balance-face { bottom: 18px; }
-@media (max-width: 720px) {
-  .sheet-main { padding-bottom: 28px !important; }
-  .balance-face { bottom: calc(18px + env(safe-area-inset-bottom)); }
-}
-
-
-/* Mascote canino: mantém as reações, mas usa cachorro como identidade visual. */
-.balance-face span { font-size: 0; }
-.balance-face span::before { content: "🐶"; font-size: 25px; line-height: 1; }
-
-
-/* Mascote fixo no painel: texto menor e cachorro em destaque. */
-.balance-face {
-  position: relative;
-  right: auto;
-  bottom: auto;
-  z-index: 1;
-  width: 100%;
-  min-height: 52px;
-  margin: 14px 0 0;
-  padding: 7px 10px;
-  animation: none;
-}
-.balance-face span {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  font-size: 0;
-}
-.balance-face span::before { content: "🐶"; font-size: 38px; line-height: 1; }
-.balance-face small { font-size: 10px; }
-@media (max-width: 720px) {
-  .sheet-main { padding-bottom: 28px !important; }
-  .balance-face { width: 100%; margin-top: 14px; }
-}
-
-
-/* IA financeira sempre acessível: botão existente fixo na tela. */
-.assistant-top-button {
-  position: fixed !important;
-  right: 14px;
-  bottom: calc(14px + env(safe-area-inset-bottom));
-  z-index: 25;
-  display: grid !important;
-  place-items: center;
-  width: 54px !important;
-  height: 54px !important;
-  border: 3px solid #fff;
-  border-radius: 50%;
-  color: #fff !important;
-  background: var(--theme-primary, #2e6f25) !important;
-  box-shadow: 0 8px 20px rgba(36, 96, 27, .28);
-}
-.assistant-top-button:hover { transform: translateY(-2px); }
-
-
-/* Interação do cachorro e ajuste mobile para telas estreitas, incluindo Poco X8 Pro. */
-.balance-face { pointer-events: auto; border: 1px solid color-mix(in srgb, var(--theme-primary, #2e6f25) 22%, var(--theme-background, #f5f8f3)); text-align: left; cursor: pointer; }
-.balance-face:active { transform: scale(.99); }
-.balance-face small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sheet-main { padding-bottom: calc(34px + env(safe-area-inset-bottom)) !important; overflow-x: hidden; }
-.balance-face { margin-bottom: calc(16px + env(safe-area-inset-bottom)); max-width: 100%; }
-.assistant-top-button.assistant-top { position: static !important; right: auto; bottom: auto; width: 36px !important; height: 36px !important; border: 0; border-radius: 50%; color: var(--theme-text, #2f3c2d) !important; background: transparent !important; box-shadow: none; }
-@media (max-width: 720px) { .sheet-main { padding-bottom: calc(34px + env(safe-area-inset-bottom)) !important; } .balance-face { margin-bottom: calc(16px + env(safe-area-inset-bottom)); } }
-
-
-/* Correção final: painel sempre completo e IA fixa junto aos controles do topo. */
-html, body, #root { min-height: 100%; height: auto !important; overflow-x: hidden !important; overflow-y: auto !important; }
-.sheet-app, .sheet-main, .panel-view, .dashboard-view { height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; }
-.sheet-main { padding-bottom: calc(40px + env(safe-area-inset-bottom)) !important; }
-.balance-face { position: relative !important; inset: auto !important; transform: none; max-height: none !important; overflow: visible !important; }
-.assistant-top-button { position: static !important; inset: auto !important; width: 36px !important; height: 36px !important; margin: 0 !important; border-radius: 50% !important; box-shadow: none !important; }
-@media (max-width: 720px) { .sheet-main { width: 100% !important; padding-inline: 16px !important; padding-bottom: calc(48px + env(safe-area-inset-bottom)) !important; } .panel-view { overflow: visible !important; } .balance-face { width: 100% !important; margin: 16px 0 0 !important; } }
-
-
-/* Organização final do painel mobile: boas-vindas, indicadores e mascote em sequência. */
-@media (max-width: 720px) {
-  .welcome-strip { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 0 !important; min-height: 0 !important; height: auto !important; padding: 16px !important; overflow: visible !important; }
-  .welcome-copy { display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; width: 100% !important; padding: 0 0 10px !important; }
-  .welcome-copy span, .welcome-copy strong { width: auto !important; }
-  .metric { display: flex !important; align-items: center !important; justify-content: space-between !important; width: 100% !important; min-height: 52px !important; padding: 10px 0 !important; text-align: left !important; border-top: 1px solid rgba(70, 125, 62, .16) !important; }
-  .metric span { flex: 1 1 auto !important; }
-  .metric strong { flex: 0 0 auto !important; margin-left: 12px !important; }
-  .dashboard-actions { display: flex !important; flex-direction: column !important; gap: 12px !important; width: 100% !important; margin-top: 16px !important; }
-  .dashboard-actions > * { width: 100% !important; min-height: 54px !important; }
-  .balance-face { display: flex !important; align-items: center !important; gap: 12px !important; position: static !important; width: 100% !important; min-height: 68px !important; height: auto !important; margin: 16px 0 0 !important; padding: 10px 14px !important; box-sizing: border-box !important; overflow: visible !important; }
-  .balance-face span { flex: 0 0 56px !important; width: 56px !important; height: 56px !important; }
-  .balance-face span::before { font-size: 42px !important; }
-  .balance-face small { flex: 1 1 auto !important; min-width: 0 !important; white-space: normal !important; overflow: visible !important; line-height: 1.25 !important; }
-}
-
-
-/* Mascote: cachorro inteiro, não apenas cabeça. */
-.balance-face span { display: grid !important; place-items: center !important; width: 72px !important; height: 72px !important; flex-basis: 72px !important; border-radius: 18px !important; font-size: 0 !important; }
-.balance-face span::before { content: "🐕‍🦺" !important; font-size: 52px !important; line-height: 1 !important; }
-@media (max-width: 720px) { .balance-face span { width: 72px !important; height: 72px !important; flex-basis: 72px !important; } .balance-face span::before { font-size: 52px !important; } }
-
-
-/* Modo compacto mobile: mostra mais informações sem ocupar a tela inteira. */
-@media (max-width: 720px) {
-  .sheet-main { padding-top: 12px !important; padding-bottom: 24px !important; }
-  .welcome-strip { margin-top: 8px !important; padding: 10px 12px !important; border-radius: 16px !important; }
-  .welcome-copy { gap: 2px !important; padding-bottom: 4px !important; }
-  .welcome-copy span { font-size: 12px !important; line-height: 1.1 !important; }
-  .welcome-copy strong { font-size: 15px !important; line-height: 1.1 !important; }
-  .metric { min-height: 38px !important; padding: 6px 0 !important; font-size: 12px !important; line-height: 1.1 !important; }
-  .metric strong { font-size: 13px !important; }
-  .metric-edit-hint { font-size: 9px !important; }
-  .dashboard-actions { gap: 8px !important; margin-top: 10px !important; }
-  .dashboard-actions > * { min-height: 44px !important; height: 44px !important; border-radius: 14px !important; font-size: 13px !important; }
-  .balance-face { min-height: 58px !important; margin-top: 10px !important; padding: 7px 10px !important; border-radius: 15px !important; gap: 8px !important; }
-  .balance-face span { width: 52px !important; height: 52px !important; flex-basis: 52px !important; }
-  .balance-face span::before { font-size: 38px !important; }
-  .balance-face small { font-size: 10px !important; }
-}
-
-
-/* Gradiente financeiro adaptativo: as cores acompanham o saldo. */
-.panel-view[class*="balance-tone-"] { transition: background .45s ease, border-color .45s ease; }
-.balance-tone-negative .welcome-strip { background: linear-gradient(135deg, #ffe2e2 0%, #ffd2b8 52%, #fff0c2 100%) !important; }
-.balance-tone-caution .welcome-strip { background: linear-gradient(135deg, #fff1c7 0%, #ffe6a3 52%, #e8f5c8 100%) !important; }
-.balance-tone-balanced .welcome-strip { background: linear-gradient(135deg, #e6f5d7 0%, #d6f0d3 52%, #cceee2 100%) !important; }
-.balance-tone-positive .welcome-strip { background: linear-gradient(135deg, #d8f1d6 0%, #c7eedf 52%, #c7e9f5 100%) !important; }
-.balance-tone-excellent .welcome-strip { background: linear-gradient(135deg, #d7e8ff 0%, #d9dcff 52%, #ead8ff 100%) !important; }
-.balance-tone-negative .metric, .balance-tone-caution .metric { color: #9b4a32 !important; }
-.balance-tone-positive .metric, .balance-tone-excellent .metric { color: #245f71 !important; }
-.balance-tone-negative .balance-face { border-color: #ef9a86 !important; background: linear-gradient(135deg, #fff3ed, #ffe1d2) !important; }
-.balance-tone-caution .balance-face { border-color: #e4c46f !important; background: linear-gradient(135deg, #fffbe9, #f8edc1) !important; }
-.balance-tone-balanced .balance-face { border-color: #a9d69d !important; background: linear-gradient(135deg, #f3fff0, #ddf3df) !important; }
-.balance-tone-positive .balance-face { border-color: #90cfd0 !important; background: linear-gradient(135deg, #effffc, #d8f1f3) !important; }
-.balance-tone-excellent .balance-face { border-color: #b8a5e6 !important; background: linear-gradient(135deg, #f5f1ff, #e8ddff) !important; }
-
-
-/* Mascote animado automaticamente, sem precisar tocar. */
-@keyframes dog-idle-bounce { 0%, 100% { transform: translateY(0) rotate(-2deg) scale(1); } 18% { transform: translateY(-4px) rotate(2deg) scale(1.03); } 36% { transform: translateY(0) rotate(-1deg) scale(1); } 58% { transform: translateY(-2px) rotate(3deg) scale(1.02); } 76% { transform: translateY(0) rotate(-2deg) scale(1); } }
-@keyframes dog-card-wiggle { 0%, 88%, 100% { transform: rotate(0deg); } 92% { transform: rotate(-.6deg); } 96% { transform: rotate(.6deg); } }
-.balance-face { animation: dog-card-wiggle 4.8s ease-in-out infinite; }
-.balance-face span::before { display: inline-block; transform-origin: 50% 90%; animation: dog-idle-bounce 2.8s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .balance-face, .balance-face span::before { animation: none !important; } }
-
-/* Tema global: o gradiente acompanha toda a interface */
-body { background: var(--theme-background, #f5f8f3); }
-.sheet-app { color: var(--theme-text, #2f3c2d); background: linear-gradient(135deg, var(--theme-background, #f5f8f3) 0%, var(--theme-card, #e4f5df) 52%, var(--theme-background, #f5f8f3) 100%); }
-.sheet-topbar, .sheet-main, .sheet-tabs, .sheet-bottom-nav, .history-toolbar, .history-table { background: transparent; }
-.sheet-topbar { border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 18%, transparent); }
-.sheet-tabs { border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 20%, transparent); }
-.sheet-tabs button:hover, .sheet-tabs button.selected, .light-action { color: var(--theme-text, #2f3c2d); background: color-mix(in srgb, var(--theme-card, #e4f5df) 78%, transparent); }
-.welcome-strip, .register-card { color: var(--theme-text, #2f3c2d); background: color-mix(in srgb, var(--theme-card, #e4f5df) 86%, transparent); }
-.sheet-message { color: var(--theme-text, #2f3c2d); background: color-mix(in srgb, var(--theme-card, #e4f5df) 72%, transparent); border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 35%, transparent); }
-.sheet-input { color: var(--theme-text, #2f3c2d); background: color-mix(in srgb, var(--theme-background, #f5f8f3) 68%, transparent); border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 48%, transparent); }
-.green-action { background: var(--theme-primary, #2e6f25); }
-.section-title h1, .sheet-brand, .metric strong, .welcome-copy, .field-label { color: var(--theme-text, #2f3c2d); }
-.metric span, .section-title > span { color: color-mix(in srgb, var(--theme-text, #2f3c2d) 72%, transparent); }
-.sheet-logo { background: var(--theme-primary, #2e6f25); }
-
-/* Unificação visual: nenhum painel interrompe o gradiente global */
-.sheet-app, .sheet-app .sheet-topbar, .sheet-app .sheet-main, .sheet-app .sheet-tabs, .sheet-app .sheet-bottom-nav, .sheet-app .dashboard-shell, .sheet-app .dashboard-panel, .sheet-app .history-panel, .sheet-app .history-toolbar, .sheet-app .history-table, .sheet-app .category-columns, .sheet-app .category-card { background-color: transparent !important; }
-.sheet-app { background: linear-gradient(135deg, var(--theme-background, #f5f8f3) 0%, var(--theme-card, #e4f5df) 50%, var(--theme-background, #f5f8f3) 100%) !important; }
-.sheet-app .welcome-strip, .sheet-app .register-card, .sheet-app .sheet-message { background: color-mix(in srgb, var(--theme-card, #e4f5df) 82%, transparent) !important; }
-
-
-/* Tema adaptativo aplicado em toda a experiência */
-.sheet-app { background: linear-gradient(135deg, var(--theme-background, #f5f8f3) 0%, #ffffff 52%, var(--theme-card, #e4f5df) 100%); background-attachment: fixed; }
-.sheet-topbar, .sheet-main { background: transparent; }
-.sheet-topbar { border-bottom-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 18%, transparent); }
-.sheet-tabs { border-bottom-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 22%, transparent); }
-.welcome-strip, .register-card, .history-card, .categories-card, .summary-card, .year-overview-modal, .metric { background: color-mix(in srgb, var(--theme-card, #e4f5df) 78%, transparent); border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 20%, transparent); }
-.panel-view, .register-view, .history-view, .categories-view { background: transparent; }
-.salary-visibility-button { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-left: 6px; border-radius: 50%; color: var(--theme-primary, #2e6f25); background: color-mix(in srgb, var(--theme-primary, #2e6f25) 12%, transparent); vertical-align: middle; }
-.salary-visibility-button:hover { background: color-mix(in srgb, var(--theme-primary, #2e6f25) 22%, transparent); }
-
-
-/* Formulário compacto em uma única coluna */
-.register-card { grid-template-columns: 1fr !important; gap: 12px; padding: 16px 14px; }
-.register-card .field-label { font-size: 11px; }
-.register-card .sheet-input { height: 42px; margin-top: 5px; }
-.register-card .register-button { min-height: 45px; margin-top: 2px; font-size: 15px; }
-.history-table { max-width: 100%; overflow-x: auto; }
-.table-head, .table-row { min-width: 430px; }
-@media (max-width: 420px) { .sheet-main { padding-left: 10px; padding-right: 10px; } .register-card { padding: 14px 12px; } .table-head, .table-row { min-width: 400px; } }
-
-
-/* Histórico compacto: todas as colunas visíveis em telas estreitas */
-.history-table { width: 100%; max-width: 100%; overflow: hidden; }
-.table-head, .table-row { min-width: 0 !important; width: 100%; grid-template-columns: .85fr .95fr 1.05fr .8fr; gap: 3px; padding: 0 5px; font-size: 9px; }
-.table-head { min-height: 34px; font-size: 9px; }
-.table-row { min-height: 40px; line-height: 1.15; }
-.table-row > *, .table-head > * { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
-.table-row strong { font-size: 9px; white-space: nowrap; }
-@media (max-width: 420px) { .table-head, .table-row { grid-template-columns: .78fr .86fr 1fr .72fr; gap: 2px; padding: 0 3px; font-size: 8px; } .table-head { font-size: 8px; } .table-row strong { font-size: 8px; } }
+/* Identidade visual final: degradê leve em toda a aplicação, preservando a paleta escolhida */
+html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd7 100%) !important; }
+.auth-screen { background: linear-gradient(145deg, #dcefd7 0%, #f7fbf5 52%, #cfe7c9 100%) !important; }
+.auth-card { background: linear-gradient(155deg, rgba(255,255,255,.98) 0%, rgba(233,247,229,.96) 100%) !important; }
+.sheet-app { background: linear-gradient(155deg, var(--theme-background, #f5f8f3) 0%, var(--theme-card, #e4f5df) 52%, var(--theme-background, #f5f8f3) 100%) !important; }
+.sheet-app .sheet-topbar,
+.sheet-app .sheet-tabs,
+.sheet-app .month-chip,
+.sheet-app .welcome-strip,
+.sheet-app .register-card,
+.sheet-app .export-panel,
+.sheet-app .category-card,
+.sheet-app .history-table,
+.sheet-app .archive-block,
+.sheet-app .year-month-card { background: linear-gradient(145deg, var(--theme-card, #e4f5df) 0%, color-mix(in srgb, var(--theme-card, #e4f5df) 74%, var(--theme-background, #f5f8f3)) 100%) !important; }
+.sheet-app .green-action { background: linear-gradient(135deg, var(--theme-primary, #2e6f25) 0%, color-mix(in srgb, var(--theme-primary, #2e6f25) 72%, #8bc27f) 100%) !important; }
+.sheet-app .light-action,
+.sheet-app .chart-action { background: linear-gradient(135deg, var(--theme-card, #e4f5df) 0%, var(--theme-background, #f5f8f3) 100%) !important; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
