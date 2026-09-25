@@ -1480,3 +1480,14 @@ body { background: var(--theme-background, #f5f8f3); }
 .sheet-app, .sheet-app .sheet-topbar, .sheet-app .sheet-main, .sheet-app .sheet-tabs, .sheet-app .sheet-bottom-nav, .sheet-app .dashboard-shell, .sheet-app .dashboard-panel, .sheet-app .history-panel, .sheet-app .history-toolbar, .sheet-app .history-table, .sheet-app .category-columns, .sheet-app .category-card { background-color: transparent !important; }
 .sheet-app { background: linear-gradient(135deg, var(--theme-background, #f5f8f3) 0%, var(--theme-card, #e4f5df) 50%, var(--theme-background, #f5f8f3) 100%) !important; }
 .sheet-app .welcome-strip, .sheet-app .register-card, .sheet-app .sheet-message { background: color-mix(in srgb, var(--theme-card, #e4f5df) 82%, transparent) !important; }
+
+
+/* Tema adaptativo aplicado em toda a experiência */
+.sheet-app { background: linear-gradient(135deg, var(--theme-background, #f5f8f3) 0%, #ffffff 52%, var(--theme-card, #e4f5df) 100%); background-attachment: fixed; }
+.sheet-topbar, .sheet-main { background: transparent; }
+.sheet-topbar { border-bottom-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 18%, transparent); }
+.sheet-tabs { border-bottom-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 22%, transparent); }
+.welcome-strip, .register-card, .history-card, .categories-card, .summary-card, .year-overview-modal, .metric { background: color-mix(in srgb, var(--theme-card, #e4f5df) 78%, transparent); border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 20%, transparent); }
+.panel-view, .register-view, .history-view, .categories-view { background: transparent; }
+.salary-visibility-button { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-left: 6px; border-radius: 50%; color: var(--theme-primary, #2e6f25); background: color-mix(in srgb, var(--theme-primary, #2e6f25) 12%, transparent); vertical-align: middle; }
+.salary-visibility-button:hover { background: color-mix(in srgb, var(--theme-primary, #2e6f25) 22%, transparent); }
