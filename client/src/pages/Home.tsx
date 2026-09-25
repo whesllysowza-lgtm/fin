@@ -420,10 +420,11 @@ function Dashboard({ people, settings, month, archivedMonths, salary, expenses, 
   const [dogTapCount, setDogTapCount] = useState(0);
   const dogTips = ["Au au! Dica: registre cada gasto no mesmo dia.", "Dica: compare as despesas com o salário antes de comprar.", "Au au! O histórico ajuda a encontrar gastos repetidos."];
   const dogMessage = dogTapCount === 0 ? faceLabel : dogTips[(dogTapCount - 1) % dogTips.length];
-  const playDogBark = () => { const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext; if (!AudioContextClass) return; const audio = new AudioContextClass(); const now = audio.currentTime; const gain = audio.createGain(); const filter = audio.createBiquadFilter(); const oscillator = audio.createOscillator(); filter.type = "bandpass"; filter.frequency.setValueAtTime(900, now); filter.Q.setValueAtTime(2.5, now); oscillator.type = "sawtooth"; oscillator.frequency.setValueAtTime(720, now); oscillator.frequency.exponentialRampToValueAtTime(140, now + 0.16); gain.gain.setValueAtTime(0.0001, now); gain.gain.exponentialRampToValueAtTime(0.7, now + 0.015); gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24); oscillator.connect(filter); filter.connect(gain); gain.connect(audio.destination); void audio.resume(); oscillator.start(now); oscillator.stop(now + 0.25); window.setTimeout(() => void audio.close(), 500); };
+  const playDogBark = () => { const bark = new Audio("https://upload.wikimedia.org/wikipedia/commons/transcoded/5/58/Barking_of_a_dog_2.ogg/Barking_of_a_dog_2.ogg"); bark.volume = 0.85; bark.currentTime = 0; void bark.play(); };
   const handleDogTap = () => { setDogTapCount((current) => current + 1); playDogBark(); };
+  const balanceTone = leftover < 0 ? "negative" : leftover < 250 ? "caution" : leftover < 1000 ? "balanced" : leftover < 2500 ? "positive" : "excellent";
   return (
-    <section className="panel-view">
+    <section className={`panel-view balance-tone-${balanceTone}`}> 
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
       <div className={`welcome-strip ${!settings.salary ? "without-salary" : ""}`}>
         <div className="welcome-copy"><span>Bem vindo,</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome">{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
