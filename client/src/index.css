@@ -1491,3 +1491,13 @@ body { background: var(--theme-background, #f5f8f3); }
 .panel-view, .register-view, .history-view, .categories-view { background: transparent; }
 .salary-visibility-button { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-left: 6px; border-radius: 50%; color: var(--theme-primary, #2e6f25); background: color-mix(in srgb, var(--theme-primary, #2e6f25) 12%, transparent); vertical-align: middle; }
 .salary-visibility-button:hover { background: color-mix(in srgb, var(--theme-primary, #2e6f25) 22%, transparent); }
+
+
+/* Formulário compacto em uma única coluna */
+.register-card { grid-template-columns: 1fr !important; gap: 12px; padding: 16px 14px; }
+.register-card .field-label { font-size: 11px; }
+.register-card .sheet-input { height: 42px; margin-top: 5px; }
+.register-card .register-button { min-height: 45px; margin-top: 2px; font-size: 15px; }
+.history-table { max-width: 100%; overflow-x: auto; }
+.table-head, .table-row { min-width: 430px; }
+@media (max-width: 420px) { .sheet-main { padding-left: 10px; padding-right: 10px; } .register-card { padding: 14px 12px; } .table-head, .table-row { min-width: 400px; } }
