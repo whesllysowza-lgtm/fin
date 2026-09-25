@@ -1394,3 +1394,20 @@ html, body, #root { min-height: 100%; height: auto !important; overflow-x: hidde
 .balance-face { position: relative !important; inset: auto !important; transform: none; max-height: none !important; overflow: visible !important; }
 .assistant-top-button { position: static !important; inset: auto !important; width: 36px !important; height: 36px !important; margin: 0 !important; border-radius: 50% !important; box-shadow: none !important; }
 @media (max-width: 720px) { .sheet-main { width: 100% !important; padding-inline: 16px !important; padding-bottom: calc(48px + env(safe-area-inset-bottom)) !important; } .panel-view { overflow: visible !important; } .balance-face { width: 100% !important; margin: 16px 0 0 !important; } }
+
+
+/* Organização final do painel mobile: boas-vindas, indicadores e mascote em sequência. */
+@media (max-width: 720px) {
+  .welcome-strip { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 0 !important; min-height: 0 !important; height: auto !important; padding: 16px !important; overflow: visible !important; }
+  .welcome-copy { display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; width: 100% !important; padding: 0 0 10px !important; }
+  .welcome-copy span, .welcome-copy strong { width: auto !important; }
+  .metric { display: flex !important; align-items: center !important; justify-content: space-between !important; width: 100% !important; min-height: 52px !important; padding: 10px 0 !important; text-align: left !important; border-top: 1px solid rgba(70, 125, 62, .16) !important; }
+  .metric span { flex: 1 1 auto !important; }
+  .metric strong { flex: 0 0 auto !important; margin-left: 12px !important; }
+  .dashboard-actions { display: flex !important; flex-direction: column !important; gap: 12px !important; width: 100% !important; margin-top: 16px !important; }
+  .dashboard-actions > * { width: 100% !important; min-height: 54px !important; }
+  .balance-face { display: flex !important; align-items: center !important; gap: 12px !important; position: static !important; width: 100% !important; min-height: 68px !important; height: auto !important; margin: 16px 0 0 !important; padding: 10px 14px !important; box-sizing: border-box !important; overflow: visible !important; }
+  .balance-face span { flex: 0 0 56px !important; width: 56px !important; height: 56px !important; }
+  .balance-face span::before { font-size: 42px !important; }
+  .balance-face small { flex: 1 1 auto !important; min-width: 0 !important; white-space: normal !important; overflow: visible !important; line-height: 1.25 !important; }
+}
