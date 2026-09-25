@@ -1375,3 +1375,13 @@ body { background: #edf5ea; }
   box-shadow: 0 8px 20px rgba(36, 96, 27, .28);
 }
 .assistant-top-button:hover { transform: translateY(-2px); }
+
+
+/* Interação do cachorro e ajuste mobile para telas estreitas, incluindo Poco X8 Pro. */
+.balance-face { pointer-events: auto; border: 1px solid color-mix(in srgb, var(--theme-primary, #2e6f25) 22%, var(--theme-background, #f5f8f3)); text-align: left; cursor: pointer; }
+.balance-face:active { transform: scale(.99); }
+.balance-face small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-main { padding-bottom: calc(34px + env(safe-area-inset-bottom)) !important; overflow-x: hidden; }
+.balance-face { margin-bottom: calc(16px + env(safe-area-inset-bottom)); max-width: 100%; }
+.assistant-top-button.assistant-top { position: static !important; right: auto; bottom: auto; width: 36px !important; height: 36px !important; border: 0; border-radius: 50%; color: var(--theme-text, #2f3c2d) !important; background: transparent !important; box-shadow: none; }
+@media (max-width: 720px) { .sheet-main { padding-bottom: calc(34px + env(safe-area-inset-bottom)) !important; } .balance-face { margin-bottom: calc(16px + env(safe-area-inset-bottom)); } }
