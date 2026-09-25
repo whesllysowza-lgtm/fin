@@ -1362,3 +1362,10 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 @media (prefers-reduced-motion: reduce) {
   .sheet-app .welcome-strip.negative-balance { animation: none; }
 }
+
+/* Atalhos de toque para preencher rapidamente os itens já cadastrados. */
+.quick-choices { display: flex; gap: 6px; margin-top: 6px; overflow-x: auto; padding: 1px 0 3px; scrollbar-width: thin; }
+.quick-choices button { flex: 0 0 auto; min-height: 30px; padding: 0 10px; border: 1px solid color-mix(in srgb, var(--theme-primary, #2e6f25) 25%, transparent); border-radius: 999px; color: var(--theme-text, #2f3c2d); background: color-mix(in srgb, var(--theme-card, #e4f5df) 78%, white); font-size: 10px; font-weight: 700; }
+.quick-choices button.selected { color: var(--theme-background, #f5f8f3); background: var(--theme-primary, #2e6f25); }
+.quick-choices-empty { display: block; margin-top: 6px; color: color-mix(in srgb, var(--theme-text, #2f3c2d) 58%, transparent); font-size: 10px; }
+@media (max-width: 720px) { .quick-choices button { min-height: 34px; padding-inline: 12px; font-size: 11px; } }
