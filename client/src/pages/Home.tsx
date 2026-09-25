@@ -371,6 +371,9 @@ export default function Home() {
     notify("Lançamento atualizado.");
   };
   const deleteEntry = (month: string, id: number) => {
+    const source = month === currentMonth ? entries : (archivedData[month] || []);
+    const target = source.find((entry) => entry.id === id);
+    if (!target || !window.confirm(`Apagar o lançamento de ${target.person} no valor de ${brl.format(target.value)}?`)) return;
     if (month === currentMonth) {
       const next = entries.filter((entry) => entry.id !== id);
       setEntries(next);
@@ -475,7 +478,7 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
   const [draft, setDraft] = useState<Entry | null>(null);
   const startEdit = (archiveMonth: string, entry: Entry) => { setEditing({ month: archiveMonth, entry }); setDraft({ ...entry }); };
   const saveEdit = () => { if (editing && draft && draft.person.trim() && draft.origin.trim() && draft.expense.trim() && draft.value > 0) { onEdit(editing.month, { ...draft, person: draft.person.trim(), origin: draft.origin.trim(), expense: draft.expense.trim() }); setEditing(null); setDraft(null); } };
-  const rows = (items: Entry[], rowMonth: string) => items.map((entry) => <div className="table-row history-row" key={`${rowMonth}-${entry.id}`}><span>{entry.person}</span><span>{entry.origin}</span><span>{entry.expense}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions"><button type="button" onClick={() => startEdit(rowMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" onClick={() => onDelete(rowMonth, entry.id)} aria-label="Apagar lançamento"><Trash2 size={14} /></button></div></div>);
+  const rows = (items: Entry[], rowMonth: string) => items.map((entry) => <div className="table-row history-row" key={`${rowMonth}-${entry.id}`}><span>{entry.person}</span><span>{entry.origin}</span><span>{entry.expense}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions"><button type="button" onClick={() => startEdit(rowMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" className="history-delete-button" onClick={() => onDelete(rowMonth, entry.id)} aria-label={`Apagar lançamento de ${entry.person}`} title={`Apagar lançamento de ${entry.person}`}><Trash2 size={14} /><span>Apagar</span></button></div></div>);
   const legacyMonthsHiddenFromExport = new Set(["Junho 2026", "Julho 2026"]);
   const savedMonths = archivedMonths.filter((savedMonth) => savedMonth !== month && !legacyMonthsHiddenFromExport.has(savedMonth) && Object.prototype.hasOwnProperty.call(archivedData, savedMonth));
   const monthOptions = [month, ...savedMonths];
