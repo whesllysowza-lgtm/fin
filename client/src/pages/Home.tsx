@@ -137,6 +137,7 @@ export default function Home() {
   const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>({});
   const [palette, setPalette] = useState<ThemePalette>(defaultPalette);
   const [alertEmail, setAlertEmail] = useState("wesleyflamengo23@hotmail.com");
+  const [accountLabel, setAccountLabel] = useState("usuário");
   const [cloudLoaded, setCloudLoaded] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const lastSnapshotRef = useRef<AppSnapshot | null>(null);
@@ -155,6 +156,8 @@ export default function Home() {
         return;
       }
       userIdRef.current = user.id;
+      const metadata = user.user_metadata as { full_name?: string; name?: string } | undefined;
+      setAccountLabel(metadata?.full_name?.trim() || metadata?.name?.trim() || user.email || "usuário");
       const { data, error } = await supabase.from("finance_state").select("payload").eq("user_id", user.id).maybeSingle();
       if (!active) return;
       const localDraftKey = `finance-state-draft:${user.id}`;
@@ -345,6 +348,43 @@ export default function Home() {
   const requestNewMonth = () => setShowNewMonthConfirm(true);
 
   const openAccount = () => setShowYearOverview(true);
+  const resetAppState = () => {
+    setTab("PAINEL");
+    setAccountLabel("usuário");
+    setPeople([]);
+    setOrigins([]);
+    setExpenses([]);
+    setSelectedPerson("");
+    setCurrentMonth(calendarMonth());
+    setArchivedMonths([]);
+    setArchivedData({});
+    setEntries([]);
+    setSummaries({});
+    setSearch("");
+    setForm({ person: "", origin: "", expense: "", value: "" });
+    setShowNewMonthConfirm(false);
+    setShowSettings(false);
+    setShowSalaryEditor(false);
+    setShowChart(false);
+    setShowYearOverview(false);
+    setShowAssistant(false);
+    setSalaryDraft("");
+    setShowSalary(false);
+    setIndicatorSettings({});
+    setPalette(defaultPalette);
+    setCanUndo(false);
+    lastSnapshotRef.current = null;
+    undoSnapshotRef.current = null;
+  };
+  const handleSignOut = async () => {
+    const userId = userIdRef.current;
+    if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current);
+    if (userId) localStorage.removeItem(`finance-state-draft:${userId}`);
+    resetAppState();
+    userIdRef.current = null;
+    setCloudLoaded(false);
+    await supabase.auth.signOut();
+  };
   const settingsForPerson: IndicatorSettings = indicatorSettings[selectedPerson] || (isSalaryPerson
     ? { salary: true, expenses: true, leftover: true, card: true }
     : { salary: false, expenses: true, leftover: false, card: true });
@@ -422,7 +462,7 @@ export default function Home() {
 
   return (
     <div className="sheet-app" style={{ "--theme-primary": palette.primary, "--theme-background": palette.background, "--theme-card": palette.card, "--theme-text": palette.text, "--theme-gradient-accent": gradientAccent } as React.CSSProperties}>
-      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {selectedPerson} 2026</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="top-icon assistant-top-button" type="button" onClick={() => setShowAssistant(true)} aria-label="Abrir assistente financeiro" title="Manus Finanças"><Bot size={18} /></button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void supabase.auth.signOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
+      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {accountLabel}</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="top-icon assistant-top-button" type="button" onClick={() => setShowAssistant(true)} aria-label="Abrir assistente financeiro" title="Manus Finanças"><Bot size={18} /></button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void handleSignOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
         {message && <div className="sheet-message" role="status">{message}</div>}
