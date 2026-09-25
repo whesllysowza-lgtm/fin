@@ -388,11 +388,21 @@ export default function Home() {
   const handleSignOut = async () => {
     const userId = userIdRef.current;
     if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current);
-    if (userId) localStorage.removeItem(`finance-state-draft:${userId}`);
+    if (userId) {
+      const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson };
+      const localDraftKey = `finance-state-draft:${userId}`;
+      localStorage.setItem(localDraftKey, JSON.stringify(payload));
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id === userId) {
+        const { error } = await supabase.from("finance_state").upsert({ id: userId, user_id: userId, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+        if (!error) localStorage.removeItem(localDraftKey);
+        else console.warn("[Supabase] Não foi possível salvar antes do logout:", error.message);
+      }
+    }
+    await supabase.auth.signOut();
     resetAppState();
     userIdRef.current = null;
     setCloudLoaded(false);
-    await supabase.auth.signOut();
   };
   const settingsForPerson: IndicatorSettings = indicatorSettings[selectedPerson] || (isSalaryPerson
     ? { salary: true, expenses: true, leftover: true, card: true }
