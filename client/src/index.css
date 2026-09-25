@@ -1475,3 +1475,8 @@ body { background: var(--theme-background, #f5f8f3); }
 .section-title h1, .sheet-brand, .metric strong, .welcome-copy, .field-label { color: var(--theme-text, #2f3c2d); }
 .metric span, .section-title > span { color: color-mix(in srgb, var(--theme-text, #2f3c2d) 72%, transparent); }
 .sheet-logo { background: var(--theme-primary, #2e6f25); }
+
+/* Unificação visual: nenhum painel interrompe o gradiente global */
+.sheet-app, .sheet-app .sheet-topbar, .sheet-app .sheet-main, .sheet-app .sheet-tabs, .sheet-app .sheet-bottom-nav, .sheet-app .dashboard-shell, .sheet-app .dashboard-panel, .sheet-app .history-panel, .sheet-app .history-toolbar, .sheet-app .history-table, .sheet-app .category-columns, .sheet-app .category-card { background-color: transparent !important; }
+.sheet-app { background: linear-gradient(135deg, var(--theme-background, #f5f8f3) 0%, var(--theme-card, #e4f5df) 50%, var(--theme-background, #f5f8f3) 100%) !important; }
+.sheet-app .welcome-strip, .sheet-app .register-card, .sheet-app .sheet-message { background: color-mix(in srgb, var(--theme-card, #e4f5df) 82%, transparent) !important; }
