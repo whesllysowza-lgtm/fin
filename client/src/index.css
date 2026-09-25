@@ -1385,3 +1385,12 @@ body { background: #edf5ea; }
 .balance-face { margin-bottom: calc(16px + env(safe-area-inset-bottom)); max-width: 100%; }
 .assistant-top-button.assistant-top { position: static !important; right: auto; bottom: auto; width: 36px !important; height: 36px !important; border: 0; border-radius: 50%; color: var(--theme-text, #2f3c2d) !important; background: transparent !important; box-shadow: none; }
 @media (max-width: 720px) { .sheet-main { padding-bottom: calc(34px + env(safe-area-inset-bottom)) !important; } .balance-face { margin-bottom: calc(16px + env(safe-area-inset-bottom)); } }
+
+
+/* Correção final: painel sempre completo e IA fixa junto aos controles do topo. */
+html, body, #root { min-height: 100%; height: auto !important; overflow-x: hidden !important; overflow-y: auto !important; }
+.sheet-app, .sheet-main, .panel-view, .dashboard-view { height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; }
+.sheet-main { padding-bottom: calc(40px + env(safe-area-inset-bottom)) !important; }
+.balance-face { position: relative !important; inset: auto !important; transform: none; max-height: none !important; overflow: visible !important; }
+.assistant-top-button { position: static !important; inset: auto !important; width: 36px !important; height: 36px !important; margin: 0 !important; border-radius: 50% !important; box-shadow: none !important; }
+@media (max-width: 720px) { .sheet-main { width: 100% !important; padding-inline: 16px !important; padding-bottom: calc(48px + env(safe-area-inset-bottom)) !important; } .panel-view { overflow: visible !important; } .balance-face { width: 100% !important; margin: 16px 0 0 !important; } }
