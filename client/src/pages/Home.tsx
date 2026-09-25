@@ -5,11 +5,11 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import FinanceAssistant from "@/components/FinanceAssistant";
 
 type Entry = { id: number; person: string; origin: string; expense: string; value: number };
-type MonthlySummary = { salary: number; expenses: number; card: number };
+type MonthlySummary = { salary: number; expenses: number; card: number; salaries?: Record<string, number> };
 type IndicatorKey = "salary" | "expenses" | "leftover" | "card";
 type IndicatorSettings = Record<IndicatorKey, boolean>;
 type ThemePalette = { primary: string; background: string; card: string; text: string };
-const emptyMonthlySummary = (): MonthlySummary => ({ salary: 0, expenses: 0, card: 0 });
+const emptyMonthlySummary = (): MonthlySummary => ({ salary: 0, expenses: 0, card: 0, salaries: {} });
 
 const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
 type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string };
@@ -187,8 +187,8 @@ export default function Home() {
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
   const selectedExpenses = selectedEntries.reduce((sum, entry) => sum + entry.value, 0);
   const selectedCard = selectedEntries.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0);
-  const selectedSalary = selectedPerson === "Wesly" ? summary.salary : 0;
-  const leftover = selectedPerson === "Wesly" ? selectedSalary - selectedExpenses : 0;
+  const selectedSalary = summary.salaries?.[selectedPerson] ?? (selectedPerson === "Wesly" ? summary.salary : 0);
+  const leftover = selectedSalary - selectedExpenses;
 
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("pt-BR");
@@ -241,8 +241,8 @@ export default function Home() {
   }, [canUndo]);
 
   const openSalaryEditor = () => {
-    if (selectedPerson !== "Wesly") return;
-    setSalaryDraft(String(summary.salary).replace(".", ","));
+    
+    setSalaryDraft(String(selectedSalary).replace(".", ","));
     setShowSalaryEditor(true);
   };
 
@@ -261,7 +261,7 @@ export default function Home() {
     }
     setSummaries((current) => ({
       ...current,
-      [currentMonth]: { ...(current[currentMonth] || { salary: 0, expenses: 0, card: 0 }), salary },
+      [currentMonth]: { ...(current[currentMonth] || { salary: 0, expenses: 0, card: 0 }), salary: selectedPerson === "Wesly" ? salary : (current[currentMonth]?.salary || 0), salaries: { ...(current[currentMonth]?.salaries || {}), [selectedPerson]: salary } },
     }));
     setShowSalaryEditor(false);
     notify(`Salário de ${currentMonth} atualizado.`);
@@ -321,11 +321,9 @@ export default function Home() {
   const requestNewMonth = () => setShowNewMonthConfirm(true);
 
   const openAccount = () => setShowYearOverview(true);
-  const settingsForPerson: IndicatorSettings = selectedPerson === "Wesly"
-    ? { salary: true, expenses: true, leftover: true, card: true }
-    : { salary: false, expenses: true, leftover: false, card: true };
+  const settingsForPerson: IndicatorSettings = { salary: true, expenses: true, leftover: true, card: true };
   const updateIndicator = (key: IndicatorKey, visible: boolean) => setIndicatorSettings((current) => ({ ...current, [selectedPerson]: { ...(current[selectedPerson] || settingsForPerson), [key]: visible } }));
-  const configurableIndicators: [IndicatorKey, string][] = selectedPerson === "Wesly" ? [["salary", "Salário"], ["expenses", "Despesas"], ["leftover", "Sobrou"], ["card", "Gastos com cartão"]] : [["expenses", "Despesas"], ["card", "Gastos com cartão"]];
+  const configurableIndicators: [IndicatorKey, string][] = [["salary", "Salário"], ["expenses", "Despesas"], ["leftover", "Sobrou"], ["card", "Gastos com cartão"]];
   const goToCurrentMonth = () => {
     const realMonth = calendarMonth();
     if (currentMonth === realMonth) { setTab("PAINEL"); notify(`Você já está no mês atual: ${realMonth}.`); return; }
