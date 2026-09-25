@@ -1330,3 +1330,29 @@ body { background: #edf5ea; }
 /* Mascote canino: mantém as reações, mas usa cachorro como identidade visual. */
 .balance-face span { font-size: 0; }
 .balance-face span::before { content: "🐶"; font-size: 25px; line-height: 1; }
+
+
+/* Mascote fixo no painel: texto menor e cachorro em destaque. */
+.balance-face {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  z-index: 1;
+  width: 100%;
+  min-height: 52px;
+  margin: 14px 0 0;
+  padding: 7px 10px;
+  animation: none;
+}
+.balance-face span {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  font-size: 0;
+}
+.balance-face span::before { content: "🐶"; font-size: 38px; line-height: 1; }
+.balance-face small { font-size: 10px; }
+@media (max-width: 720px) {
+  .sheet-main { padding-bottom: 28px !important; }
+  .balance-face { width: 100%; margin-top: 14px; }
+}
