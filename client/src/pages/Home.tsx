@@ -413,6 +413,8 @@ export default function Home() {
 }
 
 function Dashboard({ people, settings, month, archivedMonths, salary, expenses, leftover, card, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth, onEditSalary, onChart }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; expenses: number; leftover: number; card: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void; onEditSalary: () => void; onChart: () => void }) {
+  const face = expenses === 0 ? "😐" : leftover > 0 ? "🙂" : "😟";
+  const faceLabel = expenses === 0 ? "Ainda sem lançamentos" : leftover > 0 ? "Saldo positivo" : "Atenção aos gastos";
   return (
     <section className="panel-view">
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
@@ -424,6 +426,7 @@ function Dashboard({ people, settings, month, archivedMonths, salary, expenses, 
         {settings.card && <Metric label="Gastos com cartão" value={card} />}
       </div>
       <div className="dashboard-actions"><button type="button" onClick={(event) => { event.preventDefault(); onRegister(); }} className="green-action"><CirclePlus size={19} /> Registrar despesa</button><button type="button" onClick={(event) => { event.preventDefault(); onHistory(); }} className="light-action"><History size={18} /> Ver histórico</button><button type="button" onClick={(event) => { event.preventDefault(); onChart(); }} className="chart-action"><LineChart size={18} /> Gráfico</button></div>
+      <div className="balance-face" aria-label={`Status financeiro: ${faceLabel}`}><span aria-hidden="true">{face}</span><small>{faceLabel}</small></div>
     </section>
   );
 }
