@@ -1350,3 +1350,15 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
   color: #fff !important;
 }
 .sheet-app .danger-action svg { color: #fff !important; }
+
+/* Alerta visual suave para saldo negativo, sem interromper a leitura do painel. */
+.sheet-app .welcome-strip.negative-balance {
+  animation: negative-balance-pulse 2.8s ease-in-out infinite;
+}
+@keyframes negative-balance-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 14px 30px rgba(180, 35, 24, .10); }
+  50% { opacity: .93; box-shadow: 0 14px 34px rgba(180, 35, 24, .24); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-app .welcome-strip.negative-balance { animation: none; }
+}
