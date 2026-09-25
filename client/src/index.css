@@ -1316,3 +1316,12 @@ body { background: #edf5ea; }
   .balance-face { right: 14px; bottom: calc(70px + env(safe-area-inset-bottom)); width: min(230px, calc(100vw - 28px)); }
 }
 @media (prefers-reduced-motion: reduce) { .balance-face { animation: none; } }
+
+
+/* O menu inferior foi removido; a navegação continua disponível no topo. */
+.sheet-bottom-nav { display: none !important; }
+.balance-face { bottom: 18px; }
+@media (max-width: 720px) {
+  .sheet-main { padding-bottom: 28px !important; }
+  .balance-face { bottom: calc(18px + env(safe-area-inset-bottom)); }
+}
