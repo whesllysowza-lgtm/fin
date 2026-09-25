@@ -138,7 +138,7 @@ export default function Home() {
   const [showSalary, setShowSalary] = useState(false);
   const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>({});
   const [palette, setPalette] = useState<ThemePalette>(defaultPalette);
-  const [alertEmail, setAlertEmail] = useState("wesleyflamengo23@hotmail.com");
+  const [alertEmail, setAlertEmail] = useState("");
   const [accountLabel, setAccountLabel] = useState("usuário");
   const [cloudLoaded, setCloudLoaded] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
@@ -321,7 +321,7 @@ export default function Home() {
       [currentMonth]: { ...(current[currentMonth] || { salary: 0, expenses: 0, card: 0 }), salary },
     }));
     setShowSalaryEditor(false);
-    notify(`Salário de ${currentMonth} atualizado.`);
+    notify(`Salário de ${currentMonth} atualizado. Salvando...`);
   };
 
   useEffect(() => {
@@ -469,7 +469,7 @@ export default function Home() {
       setArchivedData((current) => ({ ...current, [month]: (current[month] || []).map((entry) => entry.id === updated.id ? updated : entry) }));
       setSummaries((current) => recalculateMonth(month, (archivedData[month] || []).map((entry) => entry.id === updated.id ? updated : entry), current));
     }
-    notify("Lançamento atualizado.");
+    notify("Lançamento atualizado. Salvando...");
   };
   const deleteEntry = (month: string, id: number) => {
     if (month === currentMonth) {
@@ -481,7 +481,7 @@ export default function Home() {
       setArchivedData((current) => ({ ...current, [month]: next }));
       setSummaries((current) => recalculateMonth(month, next, current));
     }
-    notify("Lançamento apagado.");
+    notify("Lançamento apagado. Salvando...");
   };
 
   const register = (event: FormEvent) => {
@@ -494,7 +494,7 @@ export default function Home() {
     setEntries((current) => [{ id: Date.now(), person: form.person, origin: form.origin, expense: form.expense, value }, ...current]);
     setSummaries((current) => { const previous = current[currentMonth] || emptyMonthlySummary(); return { ...current, [currentMonth]: { ...previous, expenses: previous.expenses + value, card: previous.card + (form.origin === "CARTÃO" ? value : 0) } }; });
     setForm({ person: "", origin: "", expense: "", value: "" });
-    notify("Registro adicionado ao histórico.");
+    notify("Registro adicionado. Salvando...");
     setTab("HISTÓRICO");
   };
 
