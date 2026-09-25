@@ -432,20 +432,18 @@ export default function Home() {
 function Dashboard({ people, settings, month, archivedMonths, salary, expenses, leftover, card, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth, onEditSalary, onChart }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; expenses: number; leftover: number; card: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void; onEditSalary: () => void; onChart: () => void }) {
   const face = expenses === 0 ? "😐" : leftover > 0 ? "🙂" : "😟";
   const faceLabel = expenses === 0 ? "Ainda sem lançamentos" : leftover > 0 ? "Saldo positivo" : "Atenção aos gastos";
-  const mascotSpeech = selectedPerson ? `Olá, ${selectedPerson}! ${faceLabel}.` : `${faceLabel}.`;
-  const speakMascot = () => { if (typeof window !== "undefined" && "speechSynthesis" in window) { window.speechSynthesis.cancel(); const voice = new SpeechSynthesisUtterance(mascotSpeech); voice.lang = "pt-BR"; voice.rate = 0.95; voice.pitch = 1.1; window.speechSynthesis.speak(voice); } };
   return (
     <section className="panel-view">
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
       <div className={`welcome-strip ${!settings.salary ? "without-salary" : ""}`}>
-        <div className="welcome-copy"><span>{selectedPerson ? `Olá, ${selectedPerson}!` : "Olá!"}</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome">{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
+        <div className="welcome-copy"><span>Bem vindo,</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome">{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
         {settings.salary && <Metric label="Salário" value={salary} editable onClick={onEditSalary} />}
         {settings.expenses && <Metric label="Despesas" value={expenses} />}
         {settings.leftover && <Metric label="Sobrou" value={leftover} />}
         {settings.card && <Metric label="Gastos com cartão" value={card} />}
       </div>
       <div className="dashboard-actions"><button type="button" onClick={(event) => { event.preventDefault(); onRegister(); }} className="green-action"><CirclePlus size={19} /> Registrar despesa</button><button type="button" onClick={(event) => { event.preventDefault(); onHistory(); }} className="light-action"><History size={18} /> Ver histórico</button><button type="button" onClick={(event) => { event.preventDefault(); onChart(); }} className="chart-action"><LineChart size={18} /> Gráfico</button></div>
-      <button type="button" className="balance-face" onClick={speakMascot} aria-label={`Ouvir saudação de ${selectedPerson || "usuário"}`} title="Toque para ouvir a saudação"><span aria-hidden="true">{face}</span><small>{mascotSpeech}</small></button>
+      <div className="balance-face" aria-label={`Status financeiro: ${faceLabel}`}><span aria-hidden="true">{face}</span><small>{faceLabel}</small></div>
     </section>
   );
 }
