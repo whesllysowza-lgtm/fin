@@ -319,9 +319,10 @@ export default function Home() {
     const lists = { people, origins, expenses };
     if (lists[kind].length <= 1) return;
     const removed = lists[kind][index];
+    if (!removed || !window.confirm(`Apagar ${removed}?`)) return;
     const setters = { people: setPeople, origins: setOrigins, expenses: setExpenses };
     setters[kind]((current) => current.filter((_, itemIndex) => itemIndex !== index));
-    if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || "Wesly");
+    if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || people[0]);
   };
 
   const requestNewMonth = () => setShowNewMonthConfirm(true);
@@ -504,5 +505,5 @@ function CategoriesView({ people, origins, expenses, onRename, onAdd, onRemove }
 }
 function Category({ title, kind, items, onRename, onAdd, onRemove }: { title: string; kind: "people" | "origins" | "expenses"; items: string[]; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
   const [newName, setNewName] = useState("");
-  return <div className="category-card"><h2>{title}</h2>{items.map((item, index) => <div className="category-edit-row" key={`${kind}-${index}`}><input value={item} onChange={(event) => onRename(kind, index, event.target.value)} aria-label={`Editar ${title.toLocaleLowerCase()} ${index + 1}`} /><button type="button" onClick={() => onRemove(kind, index)} aria-label={`Excluir ${item}`}>×</button></div>)}<form className="category-add" onSubmit={(event) => { event.preventDefault(); onAdd(kind, newName); setNewName(""); }}><input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Adicionar novo" /><button type="submit">Adicionar</button></form></div>;
+  return <div className="category-card"><h2>{title}</h2>{items.map((item, index) => <div className="category-edit-row" key={`${kind}-${index}`}><input value={item} onChange={(event) => onRename(kind, index, event.target.value)} aria-label={`Editar ${title.toLocaleLowerCase()} ${index + 1}`} /><button type="button" className="category-delete-button" onClick={() => onRemove(kind, index)} aria-label={`Excluir ${item}`} title={`Apagar ${item}`}><Trash2 size={14} /></button></div>)}<form className="category-add" onSubmit={(event) => { event.preventDefault(); onAdd(kind, newName); setNewName(""); }}><input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Adicionar novo" /><button type="submit">Adicionar</button></form></div>;
 }
