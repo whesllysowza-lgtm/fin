@@ -29,9 +29,9 @@ const initialEntries: Entry[] = [
   { id: 12, person: "Wesly", origin: "DESPESAS SIMPLES", expense: "CASA", value: 588 },
 ];
 
-const defaultPeople = ["Wesly", "Pai", "Mãe", "Vanessa", "Cristiano", "Vô"];
-const defaultOrigins = ["CARTÃO", "DESPESAS SIMPLES"];
-const defaultExpenses = ["CASA ok", "ÁGUA ok", "INTERNET", "PAI", "RÉMEDIO", "RÉMEDIO DA PRESSÃO", "MOTO", "ACADEMIA", "FATURA"];
+const defaultPeople: string[] = [];
+const defaultOrigins: string[] = [];
+const defaultExpenses: string[] = [];
 const defaultIndicatorSettings: Record<string, IndicatorSettings> = {
   Wesly: { salary: true, expenses: true, leftover: true, card: true },
   Pai: { salary: false, expenses: true, leftover: false, card: true },
@@ -117,7 +117,7 @@ export default function Home() {
   const [people, setPeople] = useState<string[]>(defaultPeople);
   const [origins, setOrigins] = useState<string[]>(defaultOrigins);
   const [expenses, setExpenses] = useState<string[]>(defaultExpenses);
-  const [selectedPerson, setSelectedPerson] = useState("Wesly");
+  const [selectedPerson, setSelectedPerson] = useState("");
   const [currentMonth, setCurrentMonth] = useState(calendarMonth);
   const [archivedMonths, setArchivedMonths] = useState<string[]>([]);
   const [archivedData, setArchivedData] = useState<Record<string, Entry[]>>({});
@@ -134,7 +134,7 @@ export default function Home() {
   const [showAssistant, setShowAssistant] = useState(false);
   const [salaryDraft, setSalaryDraft] = useState("");
   const [showSalary, setShowSalary] = useState(false);
-  const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>(readIndicatorSettings);
+  const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>({});
   const [palette, setPalette] = useState<ThemePalette>(defaultPalette);
   const [alertEmail, setAlertEmail] = useState("wesleyflamengo23@hotmail.com");
   const [accountLabel, setAccountLabel] = useState("usuário");
@@ -206,13 +206,14 @@ export default function Home() {
     })(), 350);
     return () => { if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current); };
   }, [cloudLoaded, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail]);
-  const salaryPerson = people[0] || "Wesly";
+  const salaryPerson = people[0] || "";
+  const isSalaryPerson = Boolean(selectedPerson) && selectedPerson === salaryPerson;
   const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
   const selectedExpenses = useMemo(() => selectedEntries.reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
   const selectedCard = useMemo(() => selectedEntries.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
-  const selectedSalary = selectedPerson === salaryPerson ? summary.salary : 0;
-  const leftover = selectedPerson === salaryPerson ? selectedSalary - selectedExpenses : 0;
+  const selectedSalary = isSalaryPerson ? summary.salary : 0;
+  const leftover = isSalaryPerson ? selectedSalary - selectedExpenses : 0;
 
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("pt-BR");
@@ -289,7 +290,6 @@ export default function Home() {
     }));
     setShowSalaryEditor(false);
     notify(`Salário de ${currentMonth} atualizado.`);
-    if (salary <= 0) void sendSalaryAlert(salary, currentMonth);
   };
 
   useEffect(() => {
@@ -332,21 +332,22 @@ export default function Home() {
     if (!value) return;
     const lists = { people, origins, expenses };
     const setters = { people: setPeople, origins: setOrigins, expenses: setExpenses };
-    if (!lists[kind].some((item) => item.toLocaleLowerCase("pt-BR") === value.toLocaleLowerCase("pt-BR"))) setters[kind]((current) => [...current, value]);
+    if (!lists[kind].some((item) => item.toLocaleLowerCase("pt-BR") === value.toLocaleLowerCase("pt-BR"))) {
+      setters[kind]((current) => [...current, value]);
+      if (kind === "people" && people.length === 0) setSelectedPerson(value);
+    }
   };
   const removeCategory = (kind: "people" | "origins" | "expenses", index: number) => {
     const lists = { people, origins, expenses };
-    if (lists[kind].length <= 1) return;
     const removed = lists[kind][index];
     const setters = { people: setPeople, origins: setOrigins, expenses: setExpenses };
     setters[kind]((current) => current.filter((_, itemIndex) => itemIndex !== index));
-    if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || salaryPerson);
+    if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || "");
   };
 
   const requestNewMonth = () => setShowNewMonthConfirm(true);
 
   const openAccount = () => setShowYearOverview(true);
-<<<<<<< HEAD
   const resetAppState = () => {
     setTab("PAINEL");
     setAccountLabel("usuário");
@@ -385,13 +386,10 @@ export default function Home() {
     await supabase.auth.signOut();
   };
   const settingsForPerson: IndicatorSettings = indicatorSettings[selectedPerson] || (isSalaryPerson
-=======
-  const settingsForPerson: IndicatorSettings = indicatorSettings[selectedPerson] || (selectedPerson === salaryPerson
->>>>>>> origin/main
     ? { salary: true, expenses: true, leftover: true, card: true }
     : { salary: false, expenses: true, leftover: false, card: true });
   const updateIndicator = (key: IndicatorKey, visible: boolean) => setIndicatorSettings((current) => ({ ...current, [selectedPerson]: { ...(current[selectedPerson] || settingsForPerson), [key]: visible } }));
-  const configurableIndicators: [IndicatorKey, string][] = selectedPerson === salaryPerson ? [["salary", "Salário"], ["expenses", "Despesas"], ["leftover", "Sobrou"], ["card", "Gastos com cartão"]] : [["expenses", "Despesas"], ["card", "Gastos com cartão"]];
+  const configurableIndicators: [IndicatorKey, string][] = isSalaryPerson ? [["salary", "Salário"], ["expenses", "Despesas"], ["leftover", "Sobrou"], ["card", "Gastos com cartão"]] : [["expenses", "Despesas"], ["card", "Gastos com cartão"]];
   const goToCurrentMonth = () => {
     const realMonth = calendarMonth();
     if (currentMonth === realMonth) { setTab("PAINEL"); notify(`Você já está no mês atual: ${realMonth}.`); return; }
@@ -458,7 +456,7 @@ export default function Home() {
     setTab("HISTÓRICO");
   };
 
-  const gradientAccent = selectedPerson === salaryPerson
+  const gradientAccent = isSalaryPerson
     ? leftover < 0 ? "#f3d7d2" : leftover > 0 ? "#d9f0d3" : "#edf2e8"
     : selectedExpenses > 0 ? "#e4efd8" : "#edf2e8";
 
@@ -477,7 +475,7 @@ export default function Home() {
       {showAssistant && <FinanceAssistant person={selectedPerson} month={currentMonth} salary={selectedSalary} expenses={selectedExpenses} card={selectedCard} leftover={leftover} entries={selectedEntries} onClose={() => setShowAssistant(false)} />}
       {showYearOverview && <YearOverview year={new Date().getFullYear()} currentMonth={currentMonth} summaries={summaries} onUpdateSummary={(month, field, value) => setSummaries((current) => ({ ...current, [month]: { ...(current[month] || emptyMonthlySummary()), [field]: value } }))} onClose={() => setShowYearOverview(false)} />}
       {showSalaryEditor && <div className="salary-editor-backdrop" role="presentation" onClick={() => setShowSalaryEditor(false)}><div className="salary-editor-modal" role="dialog" aria-modal="true" aria-labelledby="salary-editor-title" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR SALÁRIO</span><h2 id="salary-editor-title">Salário de {currentMonth}</h2><p>Altere o valor deste mês. O salário ficará salvo no histórico mensal do Supabase.</p><label className="field-label">VALOR DO SALÁRIO<input className="sheet-input" inputMode="decimal" autoFocus value={salaryDraft} onChange={(event) => setSalaryDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveSalary(); }} /></label><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowSalaryEditor(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveSalary}>Salvar salário</button></div></div></div>}
-      {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Usuário logado possui salário e sobra. Os demais perfis mostram apenas despesas e cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className="settings-row" key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} onChange={(event) => updateIndicator(key, event.target.checked)} /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><div className="alert-email-section"><span className="palette-title">ALERTA POR E-MAIL</span><p>Quando o salário ficar em R$ 0,00 ou negativo, enviaremos um aviso para este endereço.</p><label className="field-label">E-MAIL DO ALERTA<input className="sheet-input" type="email" value={alertEmail} onChange={(event) => setAlertEmail(event.target.value)} placeholder="seuemail@hotmail.com" /></label></div><div className="palette-section"><span className="palette-title">PALETA DE CORES</span><p>Personalize o visual do sistema. As cores ficam salvas no Supabase.</p><div className="palette-preview" aria-label="Prévia das cores atuais"><span style={{ background: palette.primary }} /><span style={{ background: palette.background }} /><span style={{ background: palette.card }} /><span style={{ background: palette.text }} /></div><div className="palette-grid">{([["primary", "Cor principal"], ["background", "Fundo"], ["card", "Cartões"], ["text", "Texto"]] as const).map(([key, label]) => <label className="palette-color-row" key={key}><span>{label}</span><input type="color" value={palette[key]} onChange={(event) => setPalette((current) => ({ ...current, [key]: event.target.value }))} aria-label={label} /><code>{palette[key]}</code></label>)}</div><button type="button" className="palette-reset" onClick={() => setPalette(defaultPalette)}>Restaurar cores originais</button></div><button type="button" className="settings-done" onClick={closeSettings}>Concluir</button></div></div>}
+      {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Usuário logado possui salário e sobra. Os demais perfis mostram apenas despesas e cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className="settings-row" key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} onChange={(event) => updateIndicator(key, event.target.checked)} /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><div className="alert-email-section"><span className="palette-title">ALERTA POR E-MAIL DESATIVADO</span><p>O salário será salvo no Supabase sem enviar alertas por e-mail.</p><label className="field-label">E-MAIL DO ALERTA<input className="sheet-input" type="email" value={alertEmail} onChange={(event) => setAlertEmail(event.target.value)} placeholder="seuemail@hotmail.com" /></label></div><div className="palette-section"><span className="palette-title">PALETA DE CORES</span><p>Personalize o visual do sistema. As cores ficam salvas no Supabase.</p><div className="palette-preview" aria-label="Prévia das cores atuais"><span style={{ background: palette.primary }} /><span style={{ background: palette.background }} /><span style={{ background: palette.card }} /><span style={{ background: palette.text }} /></div><div className="palette-grid">{([["primary", "Cor principal"], ["background", "Fundo"], ["card", "Cartões"], ["text", "Texto"]] as const).map(([key, label]) => <label className="palette-color-row" key={key}><span>{label}</span><input type="color" value={palette[key]} onChange={(event) => setPalette((current) => ({ ...current, [key]: event.target.value }))} aria-label={label} /><code>{palette[key]}</code></label>)}</div><button type="button" className="palette-reset" onClick={() => setPalette(defaultPalette)}>Restaurar cores originais</button></div><button type="button" className="settings-done" onClick={closeSettings}>Concluir</button></div></div>}
       {showNewMonthConfirm && <div className="month-modal-backdrop" role="presentation"><div className="month-modal" role="dialog" aria-modal="true" aria-labelledby="new-month-title"><span className="modal-kicker">ARQUIVAR MÊS</span><h2 id="new-month-title">Começar um novo mês?</h2><p>Os lançamentos de <strong>{currentMonth}</strong> serão salvos no histórico e a tela ficará pronta para {nextMonth(currentMonth)}.</p><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowNewMonthConfirm(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={() => { setShowNewMonthConfirm(false); startNewMonth(); }}>Começar novo mês</button></div></div></div>}
     </div>
   );
@@ -490,7 +488,7 @@ function Dashboard({ people, settings, month, archivedMonths, salary, showSalary
     <section className="panel-view">
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
       <div className={`welcome-strip ${!settings.salary ? "without-salary" : ""} ${leftover < 0 ? "negative-balance" : ""}`}>
-        <div className="welcome-copy"><span>Bem vindo,</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome">{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
+        <div className="welcome-copy"><span>Bem vindo,</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome"><option value="" disabled>{people.length ? "Selecione uma pessoa" : "Adicione uma pessoa em Categorias"}</option>{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
         {settings.salary && <Metric label="Salário" value={salary} visible={showSalary} onToggleVisibility={onToggleSalary} editable onClick={onEditSalary} />}
         {settings.expenses && <Metric label="Despesas" value={expenses} />}
         {settings.leftover && <Metric label="Sobrou" value={leftover} />}
@@ -519,11 +517,13 @@ function Metric({ label, value, visible = true, onToggleVisibility, editable, on
 }
 
 function Register({ form, setForm, onSubmit, people, origins, expenses }: { people: string[]; origins: string[]; expenses: string[]; form: { person: string; origin: string; expense: string; value: string }; setForm: React.Dispatch<React.SetStateAction<{ person: string; origin: string; expense: string; value: string }>>; onSubmit: (event: FormEvent) => void }) {
-  return <section className="register-view"><div className="section-title"><span>REGISTRO</span><h1>Adicionar despesa</h1><p>Preencha os campos abaixo e toque em registrar.</p></div><form className="register-card" onSubmit={onSubmit}><Field label="PESSOA"><Select value={form.person} placeholder="Selecione uma pessoa" options={people} onChange={(value) => setForm((current) => ({ ...current, person: value }))} /></Field><Field label="ORIGEM"><Select value={form.origin} placeholder="Selecione a origem" options={origins} onChange={(value) => setForm((current) => ({ ...current, origin: value }))} /></Field><Field label="DESPESA"><Select value={form.expense} placeholder="Selecione a despesa" options={expenses} onChange={(value) => setForm((current) => ({ ...current, expense: value }))} /></Field><label className="field-label">VALOR<input className="sheet-input" inputMode="decimal" placeholder="R$ 0,00" value={form.value} onChange={(event) => setForm((current) => ({ ...current, value: event.target.value }))} /></label><button className="register-button" type="submit">REGISTRAR</button></form></section>;
+  const choose = (field: "person" | "origin" | "expense", value: string) => setForm((current) => ({ ...current, [field]: value }));
+  return <section className="register-view"><div className="section-title"><span>REGISTRO</span><h1>Adicionar despesa</h1><p>Toque em um item para preencher rapidamente ou use as listas.</p></div><form className="register-card" onSubmit={onSubmit}><Field label="PESSOA"><Select value={form.person} placeholder="Selecione uma pessoa" options={people} onChange={(value) => choose("person", value)} /><QuickChoices options={people} value={form.person} onChoose={(value) => choose("person", value)} /></Field><Field label="ORIGEM"><Select value={form.origin} placeholder="Selecione a origem" options={origins} onChange={(value) => choose("origin", value)} /><QuickChoices options={origins} value={form.origin} onChoose={(value) => choose("origin", value)} /></Field><Field label="DESPESA"><Select value={form.expense} placeholder="Selecione a despesa" options={expenses} onChange={(value) => choose("expense", value)} /><QuickChoices options={expenses} value={form.expense} onChoose={(value) => choose("expense", value)} /></Field><label className="field-label">VALOR<input className="sheet-input" inputMode="decimal" placeholder="R$ 0,00" value={form.value} onChange={(event) => setForm((current) => ({ ...current, value: event.target.value }))} /></label><button className="register-button" type="submit">REGISTRAR</button></form></section>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="field-label">{label}{children}</label>; }
 function Select({ value, placeholder, options, onChange }: { value: string; placeholder: string; options: string[]; onChange: (value: string) => void }) { return <div className="select-wrap"><select className="sheet-input" value={value} onChange={(event) => onChange(event.target.value)}><option value="">{placeholder}</option>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select><ChevronDown size={15} /></div>; }
+function QuickChoices({ options, value, onChoose }: { options: string[]; value: string; onChoose: (value: string) => void }) { return options.length > 0 ? <div className="quick-choices" aria-label="Itens usados recentemente">{options.slice(0, 8).map((option) => <button type="button" className={option === value ? "selected" : ""} key={option} onClick={() => onChoose(option)}>{option}</button>)}</div> : <small className="quick-choices-empty">Adicione itens em Categorias</small>; }
 
 function HistoryView({ entries, allEntries, search, setSearch, month, archivedMonths, archivedData, summaries, person, onEdit, onDelete }: { entries: Entry[]; allEntries: Entry[]; search: string; setSearch: (value: string) => void; month: string; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; person: string; onEdit: (month: string, entry: Entry) => void; onDelete: (month: string, id: number) => void }) {
   const [exportMonth, setExportMonth] = useState(month);
