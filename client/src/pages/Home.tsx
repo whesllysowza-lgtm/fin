@@ -12,7 +12,7 @@ type ThemePalette = { primary: string; background: string; card: string; text: s
 const emptyMonthlySummary = (): MonthlySummary => ({ salary: 0, expenses: 0, card: 0 });
 
 const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
-type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string };
+type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string; selectedPerson: string };
 
 const initialEntries: Entry[] = [
   { id: 1, person: "Vanessa", origin: "CARTÃO", expense: "FATURA", value: 10.9 },
@@ -89,6 +89,7 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   setPalette: (value: ThemePalette) => void;
   setCurrentMonth: (value: string) => void;
   setAlertEmail: (value: string) => void;
+  setSelectedPerson: (value: string) => void;
 }) {
   if (!payload) return;
   if (Array.isArray(payload.people)) setters.setPeople(payload.people as string[]);
@@ -102,6 +103,7 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   if (payload.palette && typeof payload.palette === "object") setters.setPalette({ ...defaultPalette, ...(payload.palette as Partial<ThemePalette>) });
   if (typeof payload.currentMonth === "string") setters.setCurrentMonth(payload.currentMonth);
   if (typeof payload.alertEmail === "string") setters.setAlertEmail(payload.alertEmail);
+  if (typeof payload.selectedPerson === "string") setters.setSelectedPerson(payload.selectedPerson);
 }
 
 function calendarMonth() { const now = new Date(); return `${monthNames[now.getMonth()]} ${now.getFullYear()}`; }
@@ -167,7 +169,7 @@ export default function Home() {
       if (error) {
         console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
-        applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail });
+        applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson });
       }
       setCloudLoaded(true);
     };
@@ -177,7 +179,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!cloudLoaded) return;
-    const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail };
+    const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson };
     if (skipHistoryRef.current) {
       skipHistoryRef.current = false;
       undoSnapshotRef.current = null;
@@ -205,7 +207,7 @@ export default function Home() {
       legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
     })(), 350);
     return () => { if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current); };
-  }, [cloudLoaded, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail]);
+  }, [cloudLoaded, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson]);
   const salaryPerson = people[0] || "";
   const isSalaryPerson = Boolean(selectedPerson) && selectedPerson === salaryPerson;
   const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
@@ -247,6 +249,7 @@ export default function Home() {
     setIndicatorSettings(snapshot.indicatorSettings);
     setPalette(snapshot.palette);
     setCurrentMonth(snapshot.currentMonth);
+    setSelectedPerson(snapshot.selectedPerson);
     undoSnapshotRef.current = null;
     setCanUndo(false);
     notify("Última alteração desfeita.");
@@ -356,6 +359,7 @@ export default function Home() {
     setExpenses([]);
     setSelectedPerson("");
     setCurrentMonth(calendarMonth());
+    setSelectedPerson("");
     setArchivedMonths([]);
     setArchivedData({});
     setEntries([]);
