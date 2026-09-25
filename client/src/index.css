@@ -1436,3 +1436,19 @@ html, body, #root { min-height: 100%; height: auto !important; overflow-x: hidde
   .balance-face span::before { font-size: 38px !important; }
   .balance-face small { font-size: 10px !important; }
 }
+
+
+/* Gradiente financeiro adaptativo: as cores acompanham o saldo. */
+.panel-view[class*="balance-tone-"] { transition: background .45s ease, border-color .45s ease; }
+.balance-tone-negative .welcome-strip { background: linear-gradient(135deg, #ffe2e2 0%, #ffd2b8 52%, #fff0c2 100%) !important; }
+.balance-tone-caution .welcome-strip { background: linear-gradient(135deg, #fff1c7 0%, #ffe6a3 52%, #e8f5c8 100%) !important; }
+.balance-tone-balanced .welcome-strip { background: linear-gradient(135deg, #e6f5d7 0%, #d6f0d3 52%, #cceee2 100%) !important; }
+.balance-tone-positive .welcome-strip { background: linear-gradient(135deg, #d8f1d6 0%, #c7eedf 52%, #c7e9f5 100%) !important; }
+.balance-tone-excellent .welcome-strip { background: linear-gradient(135deg, #d7e8ff 0%, #d9dcff 52%, #ead8ff 100%) !important; }
+.balance-tone-negative .metric, .balance-tone-caution .metric { color: #9b4a32 !important; }
+.balance-tone-positive .metric, .balance-tone-excellent .metric { color: #245f71 !important; }
+.balance-tone-negative .balance-face { border-color: #ef9a86 !important; background: linear-gradient(135deg, #fff3ed, #ffe1d2) !important; }
+.balance-tone-caution .balance-face { border-color: #e4c46f !important; background: linear-gradient(135deg, #fffbe9, #f8edc1) !important; }
+.balance-tone-balanced .balance-face { border-color: #a9d69d !important; background: linear-gradient(135deg, #f3fff0, #ddf3df) !important; }
+.balance-tone-positive .balance-face { border-color: #90cfd0 !important; background: linear-gradient(135deg, #effffc, #d8f1f3) !important; }
+.balance-tone-excellent .balance-face { border-color: #b8a5e6 !important; background: linear-gradient(135deg, #f5f1ff, #e8ddff) !important; }
