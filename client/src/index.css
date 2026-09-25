@@ -1356,3 +1356,22 @@ body { background: #edf5ea; }
   .sheet-main { padding-bottom: 28px !important; }
   .balance-face { width: 100%; margin-top: 14px; }
 }
+
+
+/* IA financeira sempre acessível: botão existente fixo na tela. */
+.assistant-top-button {
+  position: fixed !important;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  z-index: 25;
+  display: grid !important;
+  place-items: center;
+  width: 54px !important;
+  height: 54px !important;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  color: #fff !important;
+  background: var(--theme-primary, #2e6f25) !important;
+  box-shadow: 0 8px 20px rgba(36, 96, 27, .28);
+}
+.assistant-top-button:hover { transform: translateY(-2px); }
