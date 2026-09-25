@@ -427,7 +427,7 @@ function Dashboard({ people, settings, month, archivedMonths, salary, expenses, 
     <section className={`panel-view balance-tone-${balanceTone}`}> 
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
       <div className={`welcome-strip ${!settings.salary ? "without-salary" : ""}`}>
-        <div className="welcome-copy"><span>Bem vindo,</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome">{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
+        <div className="welcome-copy"><span>{selectedPerson ? `Olá, ${selectedPerson}!` : "Olá!"}</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome">{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
         {settings.salary && <Metric label="Salário" value={salary} editable onClick={onEditSalary} />}
         {settings.expenses && <Metric label="Despesas" value={expenses} />}
         {settings.leftover && <Metric label="Sobrou" value={leftover} />}
