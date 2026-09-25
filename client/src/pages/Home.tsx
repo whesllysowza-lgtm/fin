@@ -2,7 +2,6 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { BarChart3, Bot, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays, LogOut } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import FinanceMascot from "@/components/FinanceMascot";
 import FinanceAssistant from "@/components/FinanceAssistant";
 
 type Entry = { id: number; person: string; origin: string; expense: string; value: number };
@@ -397,7 +396,7 @@ export default function Home() {
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
         {message && <div className="sheet-message" role="status">{message}</div>}
-        {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} expenses={selectedExpenses} leftover={leftover} card={selectedCard} activityKey={entries.length} selectedPerson={selectedPerson} onPersonChange={setSelectedPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} onChart={() => setShowChart(true)} />}
+        {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} expenses={selectedExpenses} leftover={leftover} card={selectedCard} selectedPerson={selectedPerson} onPersonChange={setSelectedPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} onChart={() => setShowChart(true)} />}
         {tab === "REGISTRO" && <Register form={form} setForm={setForm} onSubmit={register} people={people} origins={origins} expenses={expenses} />}
         {tab === "HISTÓRICO" && <HistoryView entries={filteredEntries} allEntries={selectedEntries} search={search} setSearch={setSearch} month={currentMonth} archivedMonths={archivedMonths} archivedData={archivedData} summaries={summaries} person={selectedPerson} onEdit={editEntry} onDelete={deleteEntry} />}
         {tab === "CATEGORIAS" && <CategoriesView people={people} origins={origins} expenses={expenses} onRename={updateCategory} onAdd={addCategory} onRemove={removeCategory} />}
@@ -413,7 +412,7 @@ export default function Home() {
   );
 }
 
-function Dashboard({ people, settings, month, archivedMonths, salary, expenses, leftover, card, activityKey, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth, onEditSalary, onChart }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; expenses: number; leftover: number; card: number; activityKey: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void; onEditSalary: () => void; onChart: () => void }) {
+function Dashboard({ people, settings, month, archivedMonths, salary, expenses, leftover, card, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth, onEditSalary, onChart }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; expenses: number; leftover: number; card: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void; onEditSalary: () => void; onChart: () => void }) {
   return (
     <section className="panel-view">
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
@@ -425,8 +424,6 @@ function Dashboard({ people, settings, month, archivedMonths, salary, expenses, 
         {settings.card && <Metric label="Gastos com cartão" value={card} />}
       </div>
       <div className="dashboard-actions"><button type="button" onClick={(event) => { event.preventDefault(); onRegister(); }} className="green-action"><CirclePlus size={19} /> Registrar despesa</button><button type="button" onClick={(event) => { event.preventDefault(); onHistory(); }} className="light-action"><History size={18} /> Ver histórico</button><button type="button" onClick={(event) => { event.preventDefault(); onChart(); }} className="chart-action"><LineChart size={18} /> Gráfico</button></div>
-      <FinanceMascot leftover={leftover} expenses={expenses} activityKey={activityKey} />
-      <div className="mobile-summary">{settings.salary && <Metric label="Salário" value={salary} editable onClick={onEditSalary} />}{settings.expenses && <Metric label="Despesas" value={expenses} />}{settings.leftover && <Metric label="Sobrou" value={leftover} />}{settings.card && <Metric label="Gastos com cartão" value={card} />}</div>
     </section>
   );
 }
