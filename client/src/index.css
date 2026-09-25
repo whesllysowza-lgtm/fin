@@ -1452,3 +1452,11 @@ html, body, #root { min-height: 100%; height: auto !important; overflow-x: hidde
 .balance-tone-balanced .balance-face { border-color: #a9d69d !important; background: linear-gradient(135deg, #f3fff0, #ddf3df) !important; }
 .balance-tone-positive .balance-face { border-color: #90cfd0 !important; background: linear-gradient(135deg, #effffc, #d8f1f3) !important; }
 .balance-tone-excellent .balance-face { border-color: #b8a5e6 !important; background: linear-gradient(135deg, #f5f1ff, #e8ddff) !important; }
+
+
+/* Mascote animado automaticamente, sem precisar tocar. */
+@keyframes dog-idle-bounce { 0%, 100% { transform: translateY(0) rotate(-2deg) scale(1); } 18% { transform: translateY(-4px) rotate(2deg) scale(1.03); } 36% { transform: translateY(0) rotate(-1deg) scale(1); } 58% { transform: translateY(-2px) rotate(3deg) scale(1.02); } 76% { transform: translateY(0) rotate(-2deg) scale(1); } }
+@keyframes dog-card-wiggle { 0%, 88%, 100% { transform: rotate(0deg); } 92% { transform: rotate(-.6deg); } 96% { transform: rotate(.6deg); } }
+.balance-face { animation: dog-card-wiggle 4.8s ease-in-out infinite; }
+.balance-face span::before { display: inline-block; transform-origin: 50% 90%; animation: dog-idle-bounce 2.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .balance-face, .balance-face span::before { animation: none !important; } }
