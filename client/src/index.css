@@ -1325,3 +1325,28 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
   background-attachment: fixed;
   transition: background 420ms ease;
 }
+
+/* Estado danger: quando a sobra fica negativa, o card e o botão sinalizam o alerta. */
+.sheet-app .welcome-strip.negative-balance,
+.sheet-app .welcome-strip.negative-balance .welcome-copy,
+.sheet-app .welcome-strip.negative-balance .welcome-copy span,
+.sheet-app .welcome-strip.negative-balance .welcome-copy strong,
+.sheet-app .welcome-strip.negative-balance .metric,
+.sheet-app .welcome-strip.negative-balance .metric span,
+.sheet-app .welcome-strip.negative-balance .metric strong,
+.sheet-app .welcome-strip.negative-balance .person-switcher {
+  color: #b42318 !important;
+}
+.sheet-app .welcome-strip.negative-balance {
+  border-color: color-mix(in srgb, #b42318 34%, var(--theme-background, #f5f8f3)) !important;
+  background: linear-gradient(145deg, color-mix(in srgb, #b42318 12%, var(--theme-card, #e4f5df)), color-mix(in srgb, #b42318 4%, var(--theme-background, #f5f8f3))) !important;
+}
+.sheet-app .welcome-strip.negative-balance .metric {
+  border-color: color-mix(in srgb, #b42318 24%, transparent) !important;
+}
+.sheet-app .danger-action {
+  background: linear-gradient(135deg, #b42318 0%, #d6453a 100%) !important;
+  border-color: #b42318 !important;
+  color: #fff !important;
+}
+.sheet-app .danger-action svg { color: #fff !important; }
