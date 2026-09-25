@@ -1460,3 +1460,18 @@ html, body, #root { min-height: 100%; height: auto !important; overflow-x: hidde
 .balance-face { animation: dog-card-wiggle 4.8s ease-in-out infinite; }
 .balance-face span::before { display: inline-block; transform-origin: 50% 90%; animation: dog-idle-bounce 2.8s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .balance-face, .balance-face span::before { animation: none !important; } }
+
+/* Tema global: o gradiente acompanha toda a interface */
+body { background: var(--theme-background, #f5f8f3); }
+.sheet-app { color: var(--theme-text, #2f3c2d); background: linear-gradient(135deg, var(--theme-background, #f5f8f3) 0%, var(--theme-card, #e4f5df) 52%, var(--theme-background, #f5f8f3) 100%); }
+.sheet-topbar, .sheet-main, .sheet-tabs, .sheet-bottom-nav, .history-toolbar, .history-table { background: transparent; }
+.sheet-topbar { border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 18%, transparent); }
+.sheet-tabs { border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 20%, transparent); }
+.sheet-tabs button:hover, .sheet-tabs button.selected, .light-action { color: var(--theme-text, #2f3c2d); background: color-mix(in srgb, var(--theme-card, #e4f5df) 78%, transparent); }
+.welcome-strip, .register-card { color: var(--theme-text, #2f3c2d); background: color-mix(in srgb, var(--theme-card, #e4f5df) 86%, transparent); }
+.sheet-message { color: var(--theme-text, #2f3c2d); background: color-mix(in srgb, var(--theme-card, #e4f5df) 72%, transparent); border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 35%, transparent); }
+.sheet-input { color: var(--theme-text, #2f3c2d); background: color-mix(in srgb, var(--theme-background, #f5f8f3) 68%, transparent); border-color: color-mix(in srgb, var(--theme-primary, #2e6f25) 48%, transparent); }
+.green-action { background: var(--theme-primary, #2e6f25); }
+.section-title h1, .sheet-brand, .metric strong, .welcome-copy, .field-label { color: var(--theme-text, #2f3c2d); }
+.metric span, .section-title > span { color: color-mix(in srgb, var(--theme-text, #2f3c2d) 72%, transparent); }
+.sheet-logo { background: var(--theme-primary, #2e6f25); }
