@@ -1,14 +1,16 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { BarChart3, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays, LogOut } from "lucide-react";
+import { BarChart3, Bot, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays, LogOut } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FinanceMascot from "@/components/FinanceMascot";
+import FinanceAssistant from "@/components/FinanceAssistant";
 
 type Entry = { id: number; person: string; origin: string; expense: string; value: number };
 type MonthlySummary = { salary: number; expenses: number; card: number };
 type IndicatorKey = "salary" | "expenses" | "leftover" | "card";
 type IndicatorSettings = Record<IndicatorKey, boolean>;
 type ThemePalette = { primary: string; background: string; card: string; text: string };
+const emptyMonthlySummary = (): MonthlySummary => ({ salary: 0, expenses: 0, card: 0 });
 
 const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
 type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string };
@@ -108,6 +110,7 @@ export default function Home() {
   const [showSalaryEditor, setShowSalaryEditor] = useState(false);
   const [showChart, setShowChart] = useState(false);
   const [showYearOverview, setShowYearOverview] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(false);
   const [salaryDraft, setSalaryDraft] = useState("");
   const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>(() => JSON.parse(localStorage.getItem("wesly-indicator-settings") || "null") || { Wesly: { salary: true, expenses: true, leftover: true, card: true }, Pai: { salary: false, expenses: true, leftover: true, card: true }, Mãe: { salary: false, expenses: true, leftover: true, card: true }, Vanessa: { salary: false, expenses: true, leftover: true, card: true }, Cristiano: { salary: false, expenses: true, leftover: true, card: true }, Vô: { salary: false, expenses: true, leftover: true, card: true } });
   const [palette, setPalette] = useState<ThemePalette>(defaultPalette);
@@ -117,6 +120,8 @@ export default function Home() {
   const lastSnapshotRef = useRef<AppSnapshot | null>(null);
   const undoSnapshotRef = useRef<AppSnapshot | null>(null);
   const skipHistoryRef = useRef(false);
+  const persistTimerRef = useRef<number | null>(null);
+  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -127,10 +132,14 @@ export default function Home() {
         console.warn("[Supabase Auth] Usuário não autenticado:", userError?.message || "sessão ausente");
         return;
       }
+      userIdRef.current = user.id;
       await supabase.rpc("claim_legacy_finance_state");
       const { data, error } = await supabase.from("finance_state").select("payload").eq("user_id", user.id).maybeSingle();
       if (!active) return;
-      const cloudPayload = data?.payload as Record<string, unknown> | null;
+      const localDraftKey = `finance-state-draft:${user.id}`;
+      let localDraft: Record<string, unknown> | null = null;
+      try { localDraft = JSON.parse(localStorage.getItem(localDraftKey) || "null") as Record<string, unknown> | null; } catch { localDraft = null; }
+      const cloudPayload = (localDraft || data?.payload) as Record<string, unknown> | null;
       if (error) {
         console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
@@ -154,7 +163,13 @@ export default function Home() {
       setCanUndo(true);
     }
     lastSnapshotRef.current = payload;
-    void (async () => {
+    const userId = userIdRef.current;
+    if (!userId) return;
+    const localDraftKey = `finance-state-draft:${userId}`;
+    // Grava imediatamente um rascunho individual para proteger alterações feitas antes de um F5.
+    localStorage.setItem(localDraftKey, JSON.stringify(payload));
+    if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = window.setTimeout(() => void (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { error } = await supabase.from("finance_state").upsert({ id: user.id, user_id: user.id, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
@@ -162,10 +177,12 @@ export default function Home() {
         console.warn("[Supabase] Não foi possível salvar o estado online:", error.message);
         return;
       }
+      localStorage.removeItem(localDraftKey);
       legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
-    })();
+    })(), 350);
+    return () => { if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current); };
   }, [cloudLoaded, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth]);
-  const summary = summaries[currentMonth] || { salary: 1540, expenses: 0, card: 0 };
+  const summary = summaries[currentMonth] || emptyMonthlySummary();
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
   const selectedExpenses = selectedEntries.reduce((sum, entry) => sum + entry.value, 0);
   const selectedCard = selectedEntries.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0);
@@ -257,7 +274,7 @@ export default function Home() {
       setArchivedMonths((current) => current.includes(currentMonth) ? current : [currentMonth, ...current]);
       setArchivedData((current) => current[currentMonth] ? current : ({ ...current, [currentMonth]: entries }));
     }
-    setSummaries((current) => ({ ...current, [realMonth]: current[realMonth] || { salary: 1540, expenses: 0, card: 0 } }));
+    setSummaries((current) => ({ ...current, [realMonth]: current[realMonth] || emptyMonthlySummary() }));
     setEntries([]);
     setCurrentMonth(realMonth);
     setTab("PAINEL");
@@ -316,7 +333,7 @@ export default function Home() {
       setArchivedData((current) => ({ ...current, [currentMonth]: entries }));
     }
     setEntries([]);
-    setSummaries((current) => ({ ...current, [realMonth]: current[realMonth] || { salary: 1540, expenses: 0, card: 0 } }));
+    setSummaries((current) => ({ ...current, [realMonth]: current[realMonth] || emptyMonthlySummary() }));
     setCurrentMonth(realMonth);
     setTab("PAINEL");
     notify(`${currentMonth} arquivado. Mês atual aberto: ${realMonth}.`);
@@ -327,14 +344,14 @@ export default function Home() {
     setArchivedMonths((current) => current.includes(currentMonth) ? current : [currentMonth, ...current]);
     setArchivedData((current) => ({ ...current, [currentMonth]: entries }));
     setEntries([]);
-    setSummaries((current) => ({ ...current, [next]: current[next] || { salary: 1540, expenses: 0, card: 0 } }));
+    setSummaries((current) => ({ ...current, [next]: current[next] || emptyMonthlySummary() }));
     setCurrentMonth(next);
     setTab("PAINEL");
     notify(`${currentMonth} arquivado. Novo mês: ${next}.`);
   };
 
   const recalculateMonth = (month: string, rows: Entry[], current: Record<string, MonthlySummary>) => {
-    const previous = current[month] || { salary: 1540, expenses: 0, card: 0 };
+    const previous = current[month] || emptyMonthlySummary();
     return { ...current, [month]: { ...previous, expenses: rows.reduce((sum, entry) => sum + entry.value, 0), card: rows.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0) } };
   };
   const editEntry = (month: string, updated: Entry) => {
@@ -368,7 +385,7 @@ export default function Home() {
       return;
     }
     setEntries((current) => [{ id: Date.now(), person: form.person, origin: form.origin, expense: form.expense, value }, ...current]);
-    setSummaries((current) => { const previous = current[currentMonth] || { salary: 1540, expenses: 0, card: 0 }; return { ...current, [currentMonth]: { ...previous, expenses: previous.expenses + value, card: previous.card + (form.origin === "CARTÃO" ? value : 0) } }; });
+    setSummaries((current) => { const previous = current[currentMonth] || emptyMonthlySummary(); return { ...current, [currentMonth]: { ...previous, expenses: previous.expenses + value, card: previous.card + (form.origin === "CARTÃO" ? value : 0) } }; });
     setForm({ person: "", origin: "", expense: "", value: "" });
     notify("Registro adicionado ao histórico.");
     setTab("HISTÓRICO");
@@ -376,7 +393,7 @@ export default function Home() {
 
   return (
     <div className="sheet-app" style={{ "--theme-primary": palette.primary, "--theme-background": palette.background, "--theme-card": palette.card, "--theme-text": palette.text } as React.CSSProperties}>
-      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {selectedPerson} 2026</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void supabase.auth.signOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
+      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {selectedPerson} 2026</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="top-icon assistant-top-button" type="button" onClick={() => setShowAssistant(true)} aria-label="Abrir assistente financeiro" title="Manus Finanças"><Bot size={18} /></button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void supabase.auth.signOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
         {message && <div className="sheet-message" role="status">{message}</div>}
@@ -386,7 +403,8 @@ export default function Home() {
         {tab === "CATEGORIAS" && <CategoriesView people={people} origins={origins} expenses={expenses} onRename={updateCategory} onAdd={addCategory} onRemove={removeCategory} />}
       </main>
       {showChart && <ChartModal month={currentMonth} people={people} entries={entries} onClose={() => setShowChart(false)} />}
-      {showYearOverview && <YearOverview year={new Date().getFullYear()} currentMonth={currentMonth} summaries={summaries} onUpdateSummary={(month, field, value) => setSummaries((current) => ({ ...current, [month]: { ...(current[month] || { salary: 1540, expenses: 0, card: 0 }), [field]: value } }))} onClose={() => setShowYearOverview(false)} />}
+      {showAssistant && <FinanceAssistant person={selectedPerson} month={currentMonth} salary={selectedSalary} expenses={selectedExpenses} card={selectedCard} leftover={leftover} entries={selectedEntries} onClose={() => setShowAssistant(false)} />}
+      {showYearOverview && <YearOverview year={new Date().getFullYear()} currentMonth={currentMonth} summaries={summaries} onUpdateSummary={(month, field, value) => setSummaries((current) => ({ ...current, [month]: { ...(current[month] || emptyMonthlySummary()), [field]: value } }))} onClose={() => setShowYearOverview(false)} />}
       {showSalaryEditor && <div className="salary-editor-backdrop" role="presentation" onClick={() => setShowSalaryEditor(false)}><div className="salary-editor-modal" role="dialog" aria-modal="true" aria-labelledby="salary-editor-title" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR SALÁRIO</span><h2 id="salary-editor-title">Salário de {currentMonth}</h2><p>Altere o valor deste mês. O salário ficará salvo no histórico mensal do Supabase.</p><label className="field-label">VALOR DO SALÁRIO<input className="sheet-input" inputMode="decimal" autoFocus value={salaryDraft} onChange={(event) => setSalaryDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveSalary(); }} /></label><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowSalaryEditor(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveSalary}>Salvar salário</button></div></div></div>}
       {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Regras da planilha: Wesly possui salário e sobra. Os demais perfis mostram apenas despesas e cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className="settings-row" key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} readOnly disabled /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><div className="alert-email-section"><span className="palette-title">ALERTA POR E-MAIL</span><p>Quando o salário ficar em R$ 0,00 ou negativo, enviaremos um aviso para este endereço.</p><label className="field-label">E-MAIL DO ALERTA<input className="sheet-input" type="email" value={alertEmail} onChange={(event) => setAlertEmail(event.target.value)} placeholder="seuemail@hotmail.com" /></label></div><div className="palette-section"><span className="palette-title">PALETA DE CORES</span><p>Personalize o visual do sistema. As cores ficam salvas no Supabase.</p><div className="palette-preview" aria-label="Prévia das cores atuais"><span style={{ background: palette.primary }} /><span style={{ background: palette.background }} /><span style={{ background: palette.card }} /><span style={{ background: palette.text }} /></div><div className="palette-grid">{([["primary", "Cor principal"], ["background", "Fundo"], ["card", "Cartões"], ["text", "Texto"]] as const).map(([key, label]) => <label className="palette-color-row" key={key}><span>{label}</span><input type="color" value={palette[key]} onChange={(event) => setPalette((current) => ({ ...current, [key]: event.target.value }))} aria-label={label} /><code>{palette[key]}</code></label>)}</div><button type="button" className="palette-reset" onClick={() => setPalette(defaultPalette)}>Restaurar cores originais</button></div><button type="button" className="settings-done" onClick={closeSettings}>Concluir</button></div></div>}
       {showNewMonthConfirm && <div className="month-modal-backdrop" role="presentation"><div className="month-modal" role="dialog" aria-modal="true" aria-labelledby="new-month-title"><span className="modal-kicker">ARQUIVAR MÊS</span><h2 id="new-month-title">Começar um novo mês?</h2><p>Os lançamentos de <strong>{currentMonth}</strong> serão salvos no histórico e a tela ficará pronta para {nextMonth(currentMonth)}.</p><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowNewMonthConfirm(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={() => { setShowNewMonthConfirm(false); startNewMonth(); }}>Começar novo mês</button></div></div></div>}
