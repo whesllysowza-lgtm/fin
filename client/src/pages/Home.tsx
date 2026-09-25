@@ -221,7 +221,7 @@ export default function Home() {
   const selectedExpenses = useMemo(() => selectedEntries.reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
   const selectedCard = useMemo(() => selectedEntries.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
   const selectedSalary = isSalaryPerson ? summary.salary : 0;
-  const leftover = isSalaryPerson && selectedEntries.length > 0 ? selectedSalary - selectedExpenses : 0;
+  const leftover = isSalaryPerson && selectedExpenses > 0 ? selectedSalary - selectedExpenses : 0;
 
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("pt-BR");
