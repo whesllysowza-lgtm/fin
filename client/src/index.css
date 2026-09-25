@@ -1305,3 +1305,23 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 @media (max-width: 720px) {
   .sheet-main { padding-bottom: 24px !important; }
 }
+
+/* Histórico mobile: todas as colunas e ações ficam visíveis na largura da tela. */
+@media (max-width: 720px) {
+  .history-table { overflow: hidden !important; }
+  .history-table .table-head,
+  .history-table .table-row,
+  .history-table .history-row { min-width: 0 !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr) minmax(58px, .8fr) 34px !important; gap: 4px !important; padding-inline: 8px !important; }
+  .history-table .table-head { font-size: 8px !important; }
+  .history-table .table-row { font-size: 9px !important; }
+  .history-table .table-row strong { font-size: 9px; }
+  .history-table .row-actions { gap: 2px; }
+  .history-table .row-actions button { width: 26px; height: 26px; padding: 0; }
+}
+
+/* Gradiente global adaptativo: muda suavemente conforme o saldo e os gastos mudam. */
+.sheet-app {
+  background: linear-gradient(135deg, var(--theme-background, #f5f8f3) 0%, var(--theme-gradient-accent, #edf2e8) 52%, var(--theme-card, #e4f5df) 100%) !important;
+  background-attachment: fixed;
+  transition: background 420ms ease;
+}
