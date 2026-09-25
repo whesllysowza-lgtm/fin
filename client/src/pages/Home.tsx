@@ -1,15 +1,15 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { BarChart3, Bot, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Eye, EyeOff, Trash2, Undo2, LineChart, CalendarDays, LogOut } from "lucide-react";
+import { BarChart3, Bot, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays, LogOut } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FinanceAssistant from "@/components/FinanceAssistant";
 
 type Entry = { id: number; person: string; origin: string; expense: string; value: number };
-type MonthlySummary = { salary: number; expenses: number; card: number; salaries?: Record<string, number> };
+type MonthlySummary = { salary: number; expenses: number; card: number };
 type IndicatorKey = "salary" | "expenses" | "leftover" | "card";
 type IndicatorSettings = Record<IndicatorKey, boolean>;
 type ThemePalette = { primary: string; background: string; card: string; text: string };
-const emptyMonthlySummary = (): MonthlySummary => ({ salary: 0, expenses: 0, card: 0, salaries: {} });
+const emptyMonthlySummary = (): MonthlySummary => ({ salary: 0, expenses: 0, card: 0 });
 
 const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
 type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string };
@@ -32,15 +32,23 @@ const initialEntries: Entry[] = [
 const defaultPeople = ["Wesly", "Pai", "Mãe", "Vanessa", "Cristiano", "Vô"];
 const defaultOrigins = ["CARTÃO", "DESPESAS SIMPLES"];
 const defaultExpenses = ["CASA ok", "ÁGUA ok", "INTERNET", "PAI", "RÉMEDIO", "RÉMEDIO DA PRESSÃO", "MOTO", "ACADEMIA", "FATURA"];
-const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const parseMoney = (raw: string | number): number => {
-  const input = String(raw).trim();
-  if (!input) return NaN;
-  const comma = input.lastIndexOf(",");
-  const dot = input.lastIndexOf(".");
-  if (comma > dot) return Number(input.split(".").join("").replace(",", "."));
-  return Number(input.split(",").join(""));
+const defaultIndicatorSettings: Record<string, IndicatorSettings> = {
+  Wesly: { salary: true, expenses: true, leftover: true, card: true },
+  Pai: { salary: false, expenses: true, leftover: false, card: true },
+  Mãe: { salary: false, expenses: true, leftover: false, card: true },
+  Vanessa: { salary: false, expenses: true, leftover: false, card: true },
+  Cristiano: { salary: false, expenses: true, leftover: false, card: true },
+  Vô: { salary: false, expenses: true, leftover: false, card: true },
 };
+function readIndicatorSettings(): Record<string, IndicatorSettings> {
+  try {
+    const stored = JSON.parse(localStorage.getItem("wesly-indicator-settings") || "null");
+    return stored && typeof stored === "object" ? { ...defaultIndicatorSettings, ...stored } : defaultIndicatorSettings;
+  } catch {
+    return defaultIndicatorSettings;
+  }
+}
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const legacyStorageKeys = ["wesly-people", "wesly-origins", "wesly-expenses", "wesly-current-month", "wesly-archived-months", "wesly-archived-data", "wesly-current-entries", "wesly-monthly-summaries", "wesly-indicator-settings"];
 
@@ -103,7 +111,7 @@ export default function Home() {
   const [people, setPeople] = useState<string[]>(defaultPeople);
   const [origins, setOrigins] = useState<string[]>(defaultOrigins);
   const [expenses, setExpenses] = useState<string[]>(defaultExpenses);
-  const [selectedPerson, setSelectedPerson] = useState(defaultPeople[0] || "");
+  const [selectedPerson, setSelectedPerson] = useState("Wesly");
   const [currentMonth, setCurrentMonth] = useState(calendarMonth);
   const [archivedMonths, setArchivedMonths] = useState<string[]>([]);
   const [archivedData, setArchivedData] = useState<Record<string, Entry[]>>({});
@@ -119,7 +127,7 @@ export default function Home() {
   const [showYearOverview, setShowYearOverview] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
   const [salaryDraft, setSalaryDraft] = useState("");
-  const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>(() => JSON.parse(localStorage.getItem("wesly-indicator-settings") || "null") || { Wesly: { salary: true, expenses: true, leftover: true, card: true }, Pai: { salary: false, expenses: true, leftover: true, card: true }, Mãe: { salary: false, expenses: true, leftover: true, card: true }, Vanessa: { salary: false, expenses: true, leftover: true, card: true }, Cristiano: { salary: false, expenses: true, leftover: true, card: true }, Vô: { salary: false, expenses: true, leftover: true, card: true } });
+  const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>(readIndicatorSettings);
   const [palette, setPalette] = useState<ThemePalette>(defaultPalette);
   const [alertEmail, setAlertEmail] = useState("wesleyflamengo23@hotmail.com");
   const [cloudLoaded, setCloudLoaded] = useState(false);
@@ -188,13 +196,13 @@ export default function Home() {
       legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
     })(), 350);
     return () => { if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current); };
-  }, [cloudLoaded, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth]);
-  const summary = summaries[currentMonth] || emptyMonthlySummary();
+  }, [cloudLoaded, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail]);
+  const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
-  const selectedExpenses = selectedEntries.reduce((sum, entry) => sum + entry.value, 0);
-  const selectedCard = selectedEntries.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0);
-  const selectedSalary = selectedPerson === people[0] ? (summary.salaries?.[selectedPerson] ?? summary.salary) : 0;
-  const leftover = selectedSalary - selectedExpenses;
+  const selectedExpenses = useMemo(() => selectedEntries.reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
+  const selectedCard = useMemo(() => selectedEntries.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
+  const selectedSalary = selectedPerson === "Wesly" ? summary.salary : 0;
+  const leftover = selectedPerson === "Wesly" ? selectedSalary - selectedExpenses : 0;
 
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("pt-BR");
@@ -247,8 +255,8 @@ export default function Home() {
   }, [canUndo]);
 
   const openSalaryEditor = () => {
-    if (selectedPerson !== people[0]) return;
-    setSalaryDraft(String(selectedSalary).replace(".", ","));
+    if (selectedPerson !== "Wesly") return;
+    setSalaryDraft(String(summary.salary).replace(".", ","));
     setShowSalaryEditor(true);
   };
 
@@ -260,14 +268,14 @@ export default function Home() {
   };
 
   const saveSalary = () => {
-    const salary = parseMoney(salaryDraft.replace(/[^0-9,.-]/g, ""));
+    const salary = Number(salaryDraft.replace(/[^0-9,.-]/g, "").replace(",", "."));
     if (!Number.isFinite(salary) || salary < 0) {
       notify("Informe um salário válido.");
       return;
     }
     setSummaries((current) => ({
       ...current,
-      [currentMonth]: { ...(current[currentMonth] || { salary: 0, expenses: 0, card: 0 }), salary: selectedPerson === people[0] ? salary : (current[currentMonth]?.salary || 0), salaries: { ...(current[currentMonth]?.salaries || {}), [selectedPerson]: salary } },
+      [currentMonth]: { ...(current[currentMonth] || { salary: 0, expenses: 0, card: 0 }), salary },
     }));
     setShowSalaryEditor(false);
     notify(`Salário de ${currentMonth} atualizado.`);
@@ -275,6 +283,7 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (!cloudLoaded) return;
     const realMonth = calendarMonth();
     if (currentMonth === realMonth) return;
     if (entries.length > 0) {
@@ -286,7 +295,7 @@ export default function Home() {
     setCurrentMonth(realMonth);
     setTab("PAINEL");
     notify(`Mês atual aberto: ${realMonth}. ${currentMonth} foi arquivado.`);
-  }, []);
+  }, [cloudLoaded]);
 
   const updateCategory = (kind: "people" | "origins" | "expenses", index: number, nextName: string) => {
     const name = nextName.trim();
@@ -319,18 +328,19 @@ export default function Home() {
     const lists = { people, origins, expenses };
     if (lists[kind].length <= 1) return;
     const removed = lists[kind][index];
-    if (!removed || !window.confirm(`Apagar ${removed}?`)) return;
     const setters = { people: setPeople, origins: setOrigins, expenses: setExpenses };
     setters[kind]((current) => current.filter((_, itemIndex) => itemIndex !== index));
-    if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || people[0]);
+    if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || "Wesly");
   };
 
   const requestNewMonth = () => setShowNewMonthConfirm(true);
 
   const openAccount = () => setShowYearOverview(true);
-  const settingsForPerson: IndicatorSettings = selectedPerson === people[0] ? { salary: true, expenses: true, leftover: true, card: true } : { salary: false, expenses: true, leftover: false, card: true };
+  const settingsForPerson: IndicatorSettings = indicatorSettings[selectedPerson] || (selectedPerson === "Wesly"
+    ? { salary: true, expenses: true, leftover: true, card: true }
+    : { salary: false, expenses: true, leftover: false, card: true });
   const updateIndicator = (key: IndicatorKey, visible: boolean) => setIndicatorSettings((current) => ({ ...current, [selectedPerson]: { ...(current[selectedPerson] || settingsForPerson), [key]: visible } }));
-  const configurableIndicators: [IndicatorKey, string][] = selectedPerson === people[0] ? [["salary", "Salário"], ["expenses", "Despesas"], ["leftover", "Sobrou"], ["card", "Gastos com cartão"]] : [["expenses", "Despesas"], ["card", "Gastos com cartão"]];
+  const configurableIndicators: [IndicatorKey, string][] = selectedPerson === "Wesly" ? [["salary", "Salário"], ["expenses", "Despesas"], ["leftover", "Sobrou"], ["card", "Gastos com cartão"]] : [["expenses", "Despesas"], ["card", "Gastos com cartão"]];
   const goToCurrentMonth = () => {
     const realMonth = calendarMonth();
     if (currentMonth === realMonth) { setTab("PAINEL"); notify(`Você já está no mês atual: ${realMonth}.`); return; }
@@ -371,9 +381,6 @@ export default function Home() {
     notify("Lançamento atualizado.");
   };
   const deleteEntry = (month: string, id: number) => {
-    const source = month === currentMonth ? entries : (archivedData[month] || []);
-    const target = source.find((entry) => entry.id === id);
-    if (!target || !window.confirm(`Apagar o lançamento de ${target.person} no valor de ${brl.format(target.value)}?`)) return;
     if (month === currentMonth) {
       const next = entries.filter((entry) => entry.id !== id);
       setEntries(next);
@@ -388,7 +395,7 @@ export default function Home() {
 
   const register = (event: FormEvent) => {
     event.preventDefault();
-    const value = parseMoney(form.value);
+    const value = Number(form.value.replace(",", "."));
     if (!form.person || !form.origin || !form.expense || !value) {
       notify("Preencha pessoa, origem, despesa e valor.");
       return;
@@ -415,7 +422,7 @@ export default function Home() {
       {showAssistant && <FinanceAssistant person={selectedPerson} month={currentMonth} salary={selectedSalary} expenses={selectedExpenses} card={selectedCard} leftover={leftover} entries={selectedEntries} onClose={() => setShowAssistant(false)} />}
       {showYearOverview && <YearOverview year={new Date().getFullYear()} currentMonth={currentMonth} summaries={summaries} onUpdateSummary={(month, field, value) => setSummaries((current) => ({ ...current, [month]: { ...(current[month] || emptyMonthlySummary()), [field]: value } }))} onClose={() => setShowYearOverview(false)} />}
       {showSalaryEditor && <div className="salary-editor-backdrop" role="presentation" onClick={() => setShowSalaryEditor(false)}><div className="salary-editor-modal" role="dialog" aria-modal="true" aria-labelledby="salary-editor-title" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR SALÁRIO</span><h2 id="salary-editor-title">Salário de {currentMonth}</h2><p>Altere o valor deste mês. O salário ficará salvo no histórico mensal do Supabase.</p><label className="field-label">VALOR DO SALÁRIO<input className="sheet-input" inputMode="decimal" autoFocus value={salaryDraft} onChange={(event) => setSalaryDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveSalary(); }} /></label><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowSalaryEditor(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveSalary}>Salvar salário</button></div></div></div>}
-      {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Somente o primeiro nome da lista possui salário e sobra. Os demais mostram despesas e gastos com cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className="settings-row" key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} readOnly disabled /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><div className="alert-email-section"><span className="palette-title">ALERTA POR E-MAIL</span><p>Quando o salário ficar em R$ 0,00 ou negativo, enviaremos um aviso para este endereço.</p><label className="field-label">E-MAIL DO ALERTA<input className="sheet-input" type="email" value={alertEmail} onChange={(event) => setAlertEmail(event.target.value)} placeholder="seuemail@hotmail.com" /></label></div><div className="palette-section"><span className="palette-title">PALETA DE CORES</span><p>Personalize o visual do sistema. As cores ficam salvas no Supabase.</p><div className="palette-preview" aria-label="Prévia das cores atuais"><span style={{ background: palette.primary }} /><span style={{ background: palette.background }} /><span style={{ background: palette.card }} /><span style={{ background: palette.text }} /></div><div className="palette-grid">{([["primary", "Cor principal"], ["background", "Fundo"], ["card", "Cartões"], ["text", "Texto"]] as const).map(([key, label]) => <label className="palette-color-row" key={key}><span>{label}</span><input type="color" value={palette[key]} onChange={(event) => setPalette((current) => ({ ...current, [key]: event.target.value }))} aria-label={label} /><code>{palette[key]}</code></label>)}</div><button type="button" className="palette-reset" onClick={() => setPalette(defaultPalette)}>Restaurar cores originais</button></div><button type="button" className="settings-done" onClick={closeSettings}>Concluir</button></div></div>}
+      {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Regras da planilha: Wesly possui salário e sobra. Os demais perfis mostram apenas despesas e cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className="settings-row" key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} onChange={(event) => updateIndicator(key, event.target.checked)} /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><div className="alert-email-section"><span className="palette-title">ALERTA POR E-MAIL</span><p>Quando o salário ficar em R$ 0,00 ou negativo, enviaremos um aviso para este endereço.</p><label className="field-label">E-MAIL DO ALERTA<input className="sheet-input" type="email" value={alertEmail} onChange={(event) => setAlertEmail(event.target.value)} placeholder="seuemail@hotmail.com" /></label></div><div className="palette-section"><span className="palette-title">PALETA DE CORES</span><p>Personalize o visual do sistema. As cores ficam salvas no Supabase.</p><div className="palette-preview" aria-label="Prévia das cores atuais"><span style={{ background: palette.primary }} /><span style={{ background: palette.background }} /><span style={{ background: palette.card }} /><span style={{ background: palette.text }} /></div><div className="palette-grid">{([["primary", "Cor principal"], ["background", "Fundo"], ["card", "Cartões"], ["text", "Texto"]] as const).map(([key, label]) => <label className="palette-color-row" key={key}><span>{label}</span><input type="color" value={palette[key]} onChange={(event) => setPalette((current) => ({ ...current, [key]: event.target.value }))} aria-label={label} /><code>{palette[key]}</code></label>)}</div><button type="button" className="palette-reset" onClick={() => setPalette(defaultPalette)}>Restaurar cores originais</button></div><button type="button" className="settings-done" onClick={closeSettings}>Concluir</button></div></div>}
       {showNewMonthConfirm && <div className="month-modal-backdrop" role="presentation"><div className="month-modal" role="dialog" aria-modal="true" aria-labelledby="new-month-title"><span className="modal-kicker">ARQUIVAR MÊS</span><h2 id="new-month-title">Começar um novo mês?</h2><p>Os lançamentos de <strong>{currentMonth}</strong> serão salvos no histórico e a tela ficará pronta para {nextMonth(currentMonth)}.</p><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowNewMonthConfirm(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={() => { setShowNewMonthConfirm(false); startNewMonth(); }}>Começar novo mês</button></div></div></div>}
       <nav className="sheet-bottom-nav">{[["PAINEL", HomeIcon], ["REGISTRO", Plus], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={19} /><span>{name as string}</span></button>)}</nav>
     </div>
@@ -423,26 +430,20 @@ export default function Home() {
 }
 
 function Dashboard({ people, settings, month, archivedMonths, salary, expenses, leftover, card, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth, onEditSalary, onChart }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; expenses: number; leftover: number; card: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void; onEditSalary: () => void; onChart: () => void }) {
-  const face = expenses === 0 ? "🐶" : salary > 0 && leftover >= salary * 0.5 ? "🐩✨" : leftover > 0 ? "🐕" : "🐕‍🦺";
-  const faceLabel = expenses === 0 ? "Ainda sem lançamentos" : salary > 0 && leftover >= salary * 0.5 ? "Saldo excelente!" : leftover > 0 ? "Saldo positivo" : "Atenção aos gastos";
-  const [dogTapCount, setDogTapCount] = useState(0);
-  const dogTips = ["Au au! Dica: registre cada gasto no mesmo dia.", "Dica: compare as despesas com o salário antes de comprar.", "Au au! O histórico ajuda a encontrar gastos repetidos."];
-  const dogMessage = dogTapCount === 0 ? faceLabel : dogTips[(dogTapCount - 1) % dogTips.length];
-  const playDogBark = () => { const bark = new Audio("https://upload.wikimedia.org/wikipedia/commons/transcoded/5/58/Barking_of_a_dog_2.ogg/Barking_of_a_dog_2.ogg"); bark.volume = 0.85; bark.currentTime = 0; void bark.play(); };
-  const handleDogTap = () => { setDogTapCount((current) => current + 1); playDogBark(); };
-  const balanceTone = leftover < 0 ? "negative" : leftover < 250 ? "caution" : leftover < 1000 ? "balanced" : leftover < 2500 ? "positive" : "excellent";
+  const face = expenses === 0 ? "😐" : leftover > 0 ? "🙂" : "😟";
+  const faceLabel = expenses === 0 ? "Ainda sem lançamentos" : leftover > 0 ? "Saldo positivo" : "Atenção aos gastos";
   return (
-    <section className={`panel-view balance-tone-${balanceTone}`}> 
+    <section className="panel-view">
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
       <div className={`welcome-strip ${!settings.salary ? "without-salary" : ""}`}>
-        <div className="welcome-copy"><span>{selectedPerson ? `Olá, ${selectedPerson}!` : "Olá!"}</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome">{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
+        <div className="welcome-copy"><span>Bem vindo,</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome">{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
         {settings.salary && <Metric label="Salário" value={salary} editable onClick={onEditSalary} />}
         {settings.expenses && <Metric label="Despesas" value={expenses} />}
         {settings.leftover && <Metric label="Sobrou" value={leftover} />}
         {settings.card && <Metric label="Gastos com cartão" value={card} />}
       </div>
       <div className="dashboard-actions"><button type="button" onClick={(event) => { event.preventDefault(); onRegister(); }} className="green-action"><CirclePlus size={19} /> Registrar despesa</button><button type="button" onClick={(event) => { event.preventDefault(); onHistory(); }} className="light-action"><History size={18} /> Ver histórico</button><button type="button" onClick={(event) => { event.preventDefault(); onChart(); }} className="chart-action"><LineChart size={18} /> Gráfico</button></div>
-      <button type="button" className="balance-face" onClick={handleDogTap} aria-label="Tocar no cachorro para ouvir uma dica financeira"><span aria-hidden="true">{face}</span><small>{dogMessage}</small></button>
+      <div className="balance-face" aria-label={`Status financeiro: ${faceLabel}`}><span aria-hidden="true">{face}</span><small>{faceLabel}</small></div>
     </section>
   );
 }
@@ -450,7 +451,7 @@ function Dashboard({ people, settings, month, archivedMonths, salary, expenses, 
 function YearOverview({ year, currentMonth, summaries, onUpdateSummary, onClose }: { year: number; currentMonth: string; summaries: Record<string, MonthlySummary>; onUpdateSummary: (month: string, field: "salary" | "expenses" | "card", value: number) => void; onClose: () => void }) {
   const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const [editingMonth, setEditingMonth] = useState<string | null>(null);
-  return <div className="year-overview-backdrop" role="presentation" onClick={onClose}><div className="year-overview-modal" role="dialog" aria-modal="true" aria-labelledby="year-overview-title" onClick={(event) => event.stopPropagation()}><div className="year-overview-heading"><div><span className="modal-kicker">RESUMO ANUAL</span><h2 id="year-overview-title">Gestão de {year}</h2><p>Confira os cálculos de cada mês. Use <strong>Editar</strong> apenas quando precisar corrigir um valor.</p></div><button type="button" className="settings-close" onClick={onClose} aria-label="Fechar resumo anual"><X size={18} /></button></div><div className="year-month-grid">{months.map((month, index) => { const key = `${month} ${year}`; const summary = summaries[key] || { salary: 0, expenses: 0, card: 0 }; const leftover = summary.salary - summary.expenses; const isEditing = editingMonth === key; return <div className={`year-month-card ${key === currentMonth ? "active" : ""} ${isEditing ? "editing" : ""}`} key={month}><div className="year-month-card-heading"><span className="year-month-index">{String(index + 1).padStart(2, "0")}</span><strong>{month}</strong><button type="button" className="year-edit-button" onClick={() => setEditingMonth(isEditing ? null : key)}>{isEditing ? "Fechar" : "Editar"}</button></div>{isEditing ? <div className="year-summary-fields"><label>Salário<input type="text" inputMode="decimal" value={summary.salary} onChange={(event) => onUpdateSummary(key, "salary", parseMoney(event.target.value) || 0)} /></label><label>Despesas<input type="number" min="0" step="0.01" value={summary.expenses} onChange={(event) => onUpdateSummary(key, "expenses", Number(event.target.value) || 0)} /></label><label>Cartão<input type="number" min="0" step="0.01" value={summary.card} onChange={(event) => onUpdateSummary(key, "card", Number(event.target.value) || 0)} /></label></div> : <div className="year-summary-values"><span>Salário <strong>{brl.format(summary.salary)}</strong></span><span>Despesas <strong>{brl.format(summary.expenses)}</strong></span><span>Cartão <strong>{brl.format(summary.card)}</strong></span><span className="year-leftover">Sobra <strong>{brl.format(leftover)}</strong></span></div>}</div>; })}</div><button type="button" className="settings-done" onClick={onClose}><CalendarDays size={16} /> Fechar resumo</button></div></div>;
+  return <div className="year-overview-backdrop" role="presentation" onClick={onClose}><div className="year-overview-modal" role="dialog" aria-modal="true" aria-labelledby="year-overview-title" onClick={(event) => event.stopPropagation()}><div className="year-overview-heading"><div><span className="modal-kicker">RESUMO ANUAL</span><h2 id="year-overview-title">Gestão de {year}</h2><p>Confira os cálculos de cada mês. Use <strong>Editar</strong> apenas quando precisar corrigir um valor.</p></div><button type="button" className="settings-close" onClick={onClose} aria-label="Fechar resumo anual"><X size={18} /></button></div><div className="year-month-grid">{months.map((month, index) => { const key = `${month} ${year}`; const summary = summaries[key] || { salary: 0, expenses: 0, card: 0 }; const leftover = summary.salary - summary.expenses; const isEditing = editingMonth === key; return <div className={`year-month-card ${key === currentMonth ? "active" : ""} ${isEditing ? "editing" : ""}`} key={month}><div className="year-month-card-heading"><span className="year-month-index">{String(index + 1).padStart(2, "0")}</span><strong>{month}</strong><button type="button" className="year-edit-button" onClick={() => setEditingMonth(isEditing ? null : key)}>{isEditing ? "Fechar" : "Editar"}</button></div>{isEditing ? <div className="year-summary-fields"><label>Salário<input type="number" min="0" step="0.01" value={summary.salary} onChange={(event) => onUpdateSummary(key, "salary", Number(event.target.value) || 0)} /></label><label>Despesas<input type="number" min="0" step="0.01" value={summary.expenses} onChange={(event) => onUpdateSummary(key, "expenses", Number(event.target.value) || 0)} /></label><label>Cartão<input type="number" min="0" step="0.01" value={summary.card} onChange={(event) => onUpdateSummary(key, "card", Number(event.target.value) || 0)} /></label></div> : <div className="year-summary-values"><span>Salário <strong>{brl.format(summary.salary)}</strong></span><span>Despesas <strong>{brl.format(summary.expenses)}</strong></span><span>Cartão <strong>{brl.format(summary.card)}</strong></span><span className="year-leftover">Sobra <strong>{brl.format(leftover)}</strong></span></div>}</div>; })}</div><button type="button" className="settings-done" onClick={onClose}><CalendarDays size={16} /> Fechar resumo</button></div></div>;
 }
 
 function ChartModal({ month, people, entries, onClose }: { month: string; people: string[]; entries: Entry[]; onClose: () => void }) {
@@ -459,9 +460,7 @@ function ChartModal({ month, people, entries, onClose }: { month: string; people
 }
 
 function Metric({ label, value, editable, onClick }: { label: string; value: number; editable?: boolean; onClick?: () => void }) {
-  const [visible, setVisible] = useState(true);
-  const isPrivate = label === "Salário";
-  const content = <><span>{label}{editable && <small className="metric-edit-hint"> editar</small>}{isPrivate && <button type="button" className="salary-visibility-button" onClick={(event) => { event.stopPropagation(); setVisible((current) => !current); }} aria-label={visible ? "Ocultar salário" : "Mostrar salário"} title={visible ? "Ocultar salário" : "Mostrar salário"}>{visible ? <Eye size={15} /> : <EyeOff size={15} />}</button>}</span><strong>{isPrivate && !visible ? "••••••" : brl.format(value)}</strong></>;
+  const content = <><span>{label}{editable && <small className="metric-edit-hint"> editar</small>}</span><strong>{brl.format(value)}</strong></>;
   return editable ? <button type="button" className="metric metric-editable" onClick={onClick} aria-label={`Editar ${label}`}>{content}</button> : <div className="metric">{content}</div>;
 }
 
@@ -480,7 +479,7 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
   const [draft, setDraft] = useState<Entry | null>(null);
   const startEdit = (archiveMonth: string, entry: Entry) => { setEditing({ month: archiveMonth, entry }); setDraft({ ...entry }); };
   const saveEdit = () => { if (editing && draft && draft.person.trim() && draft.origin.trim() && draft.expense.trim() && draft.value > 0) { onEdit(editing.month, { ...draft, person: draft.person.trim(), origin: draft.origin.trim(), expense: draft.expense.trim() }); setEditing(null); setDraft(null); } };
-  const rows = (items: Entry[], rowMonth: string) => items.map((entry) => <div className="table-row history-row" key={`${rowMonth}-${entry.id}`}><span>{entry.person}</span><span>{entry.origin}</span><span>{entry.expense}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions"><button type="button" onClick={() => startEdit(rowMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" className="history-delete-button" onClick={() => onDelete(rowMonth, entry.id)} aria-label={`Apagar lançamento de ${entry.person}`} title={`Apagar lançamento de ${entry.person}`}><Trash2 size={14} /><span>Apagar</span></button></div></div>);
+  const rows = (items: Entry[], rowMonth: string) => items.map((entry) => <div className="table-row history-row" key={`${rowMonth}-${entry.id}`}><span>{entry.person}</span><span>{entry.origin}</span><span>{entry.expense}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions"><button type="button" onClick={() => startEdit(rowMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" onClick={() => onDelete(rowMonth, entry.id)} aria-label="Apagar lançamento"><Trash2 size={14} /></button></div></div>);
   const legacyMonthsHiddenFromExport = new Set(["Junho 2026", "Julho 2026"]);
   const savedMonths = archivedMonths.filter((savedMonth) => savedMonth !== month && !legacyMonthsHiddenFromExport.has(savedMonth) && Object.prototype.hasOwnProperty.call(archivedData, savedMonth));
   const monthOptions = [month, ...savedMonths];
@@ -502,7 +501,7 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
     setExportMessage(`${exportMonth} exportado com ${exportEntries.length} lançamento(s).`);
     window.setTimeout(() => setExportMessage(""), 2800);
   };
-  return <section className="history-view"><div className="section-title"><span>HISTÓRICO</span><h1>Lançamentos registrados</h1><p>Registros de {month} para {person}. Meses anteriores ficam ocultos.</p></div><div className="export-panel"><div><span>EXPORTAR PLANILHA</span><strong>Escolha o mês desejado</strong></div><div className="export-controls"><select className="export-month-select" value={exportMonth} onChange={(event) => setExportMonth(event.target.value)} aria-label="Mês para exportar">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="export-button" onClick={exportSpreadsheet}><Download size={16} /> Exportar</button></div></div>{exportMessage && <div className="export-message" role="status">{exportMessage}</div>}<div className="history-toolbar"><div className="sheet-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar pessoa, origem ou despesa" />{search && <button type="button" onClick={(event) => { event.preventDefault(); setSearch(""); }} aria-label="Limpar pesquisa"><X size={15} /></button>}</div></div>{Object.keys(archivedData).length > 0 && <button type="button" className="archived-toggle" onClick={() => setShowArchived((current) => !current)}>{showArchived ? "Ocultar meses anteriores" : "Mostrar meses anteriores"}</button>}<div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span></div>{rows(entries, month)}{entries.length === 0 && <div className="no-results">Nenhum registro registrado em {month}.</div>}</div>{showArchived && Object.entries(archivedData).map(([archiveMonth, archiveEntries]) => <div className="archive-block" key={archiveMonth}><div className="archive-heading">{archiveMonth} salvo</div><div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span></div>{rows(archiveEntries, archiveMonth)}</div></div>)}{editing && draft && <div className="edit-entry-backdrop" role="presentation"><div className="edit-entry-modal" role="dialog" aria-modal="true"><span className="modal-kicker">EDITAR LANÇAMENTO</span><h2>{editing.month}</h2><input value={draft.person} onChange={(event) => setDraft({ ...draft, person: event.target.value })} aria-label="Pessoa" /><input value={draft.origin} onChange={(event) => setDraft({ ...draft, origin: event.target.value })} aria-label="Origem" /><input value={draft.expense} onChange={(event) => setDraft({ ...draft, expense: event.target.value })} aria-label="Despesa" /><input inputMode="decimal" value={String(draft.value).replace(".", ",")} onChange={(event) => setDraft({ ...draft, value: parseMoney(event.target.value) || 0 })} aria-label="Valor" /><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => { setEditing(null); setDraft(null); }}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveEdit}>Salvar</button></div></div></div>}</section>;
+  return <section className="history-view"><div className="section-title"><span>HISTÓRICO</span><h1>Lançamentos registrados</h1><p>Registros de {month} para {person}. Meses anteriores ficam ocultos.</p></div><div className="export-panel"><div><span>EXPORTAR PLANILHA</span><strong>Escolha o mês desejado</strong></div><div className="export-controls"><select className="export-month-select" value={exportMonth} onChange={(event) => setExportMonth(event.target.value)} aria-label="Mês para exportar">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="export-button" onClick={exportSpreadsheet}><Download size={16} /> Exportar</button></div></div>{exportMessage && <div className="export-message" role="status">{exportMessage}</div>}<div className="history-toolbar"><div className="sheet-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar pessoa, origem ou despesa" />{search && <button type="button" onClick={(event) => { event.preventDefault(); setSearch(""); }} aria-label="Limpar pesquisa"><X size={15} /></button>}</div></div>{Object.keys(archivedData).length > 0 && <button type="button" className="archived-toggle" onClick={() => setShowArchived((current) => !current)}>{showArchived ? "Ocultar meses anteriores" : "Mostrar meses anteriores"}</button>}<div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span></div>{rows(entries, month)}{entries.length === 0 && <div className="no-results">Nenhum registro registrado em {month}.</div>}</div>{showArchived && Object.entries(archivedData).map(([archiveMonth, archiveEntries]) => <div className="archive-block" key={archiveMonth}><div className="archive-heading">{archiveMonth} salvo</div><div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span></div>{rows(archiveEntries, archiveMonth)}</div></div>)}{editing && draft && <div className="edit-entry-backdrop" role="presentation"><div className="edit-entry-modal" role="dialog" aria-modal="true"><span className="modal-kicker">EDITAR LANÇAMENTO</span><h2>{editing.month}</h2><input value={draft.person} onChange={(event) => setDraft({ ...draft, person: event.target.value })} aria-label="Pessoa" /><input value={draft.origin} onChange={(event) => setDraft({ ...draft, origin: event.target.value })} aria-label="Origem" /><input value={draft.expense} onChange={(event) => setDraft({ ...draft, expense: event.target.value })} aria-label="Despesa" /><input inputMode="decimal" value={String(draft.value).replace(".", ",")} onChange={(event) => setDraft({ ...draft, value: Number(event.target.value.replace(",", ".")) || 0 })} aria-label="Valor" /><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => { setEditing(null); setDraft(null); }}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveEdit}>Salvar</button></div></div></div>}</section>;
 }
 
 function CategoriesView({ people, origins, expenses, onRename, onAdd, onRemove }: { people: string[]; origins: string[]; expenses: string[]; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
@@ -510,5 +509,5 @@ function CategoriesView({ people, origins, expenses, onRename, onAdd, onRemove }
 }
 function Category({ title, kind, items, onRename, onAdd, onRemove }: { title: string; kind: "people" | "origins" | "expenses"; items: string[]; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
   const [newName, setNewName] = useState("");
-  return <div className="category-card"><h2>{title}</h2>{items.map((item, index) => <div className="category-edit-row" key={`${kind}-${index}`}><input value={item} onChange={(event) => onRename(kind, index, event.target.value)} aria-label={`Editar ${title.toLocaleLowerCase()} ${index + 1}`} /><button type="button" className="category-delete-button" onClick={() => onRemove(kind, index)} aria-label={`Excluir ${item}`} title={`Apagar ${item}`}><Trash2 size={14} /></button></div>)}<form className="category-add" onSubmit={(event) => { event.preventDefault(); onAdd(kind, newName); setNewName(""); }}><input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Adicionar novo" /><button type="submit">Adicionar</button></form></div>;
+  return <div className="category-card"><h2>{title}</h2>{items.map((item, index) => <div className="category-edit-row" key={`${kind}-${index}`}><input value={item} onChange={(event) => onRename(kind, index, event.target.value)} aria-label={`Editar ${title.toLocaleLowerCase()} ${index + 1}`} /><button type="button" onClick={() => onRemove(kind, index)} aria-label={`Excluir ${item}`}>×</button></div>)}<form className="category-add" onSubmit={(event) => { event.preventDefault(); onAdd(kind, newName); setNewName(""); }}><input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Adicionar novo" /><button type="submit">Adicionar</button></form></div>;
 }
