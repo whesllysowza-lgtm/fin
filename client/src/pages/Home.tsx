@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { BarChart3, Bot, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays, LogOut } from "lucide-react";
+import { BarChart3, Bot, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Eye, EyeOff, Trash2, Undo2, LineChart, CalendarDays, LogOut } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FinanceAssistant from "@/components/FinanceAssistant";
 
@@ -459,7 +459,9 @@ function ChartModal({ month, people, entries, onClose }: { month: string; people
 }
 
 function Metric({ label, value, editable, onClick }: { label: string; value: number; editable?: boolean; onClick?: () => void }) {
-  const content = <><span>{label}{editable && <small className="metric-edit-hint"> editar</small>}</span><strong>{brl.format(value)}</strong></>;
+  const [visible, setVisible] = useState(true);
+  const isPrivate = label === "Salário";
+  const content = <><span>{label}{editable && <small className="metric-edit-hint"> editar</small>}{isPrivate && <button type="button" className="salary-visibility-button" onClick={(event) => { event.stopPropagation(); setVisible((current) => !current); }} aria-label={visible ? "Ocultar salário" : "Mostrar salário"} title={visible ? "Ocultar salário" : "Mostrar salário"}>{visible ? <Eye size={15} /> : <EyeOff size={15} />}</button>}</span><strong>{isPrivate && !visible ? "••••••" : brl.format(value)}</strong></>;
   return editable ? <button type="button" className="metric metric-editable" onClick={onClick} aria-label={`Editar ${label}`}>{content}</button> : <div className="metric">{content}</div>;
 }
 
