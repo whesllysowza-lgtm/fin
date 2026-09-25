@@ -1275,3 +1275,8 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .sheet-app .light-action,
 .sheet-app .chart-action { background: linear-gradient(135deg, var(--theme-card, #e4f5df) 0%, var(--theme-background, #f5f8f3) 100%) !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+
+/* Remoção definitiva do cachorro: manter somente a carinha de status */
+.balance-face span { display: grid !important; place-items: center !important; width: 38px !important; height: 38px !important; flex: 0 0 auto !important; font-size: 20px !important; line-height: 1 !important; }
+.balance-face span::before { content: none !important; display: none !important; }
