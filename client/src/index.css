@@ -1243,3 +1243,42 @@ body { background: #edf5ea; }
 .mascot-face { z-index: 1; width: 29px; height: 29px; padding: 4px; border-radius: 9px; color: var(--theme-primary, #2e6f25); background: color-mix(in srgb, var(--theme-primary, #2e6f25) 12%, transparent); }
 .finance-mascot-worried .mascot-body::before { background: #e9a45c; }.finance-mascot-worried .mascot-body::after { content: "!"; background: #b98236; }.finance-mascot-happy .mascot-body::before { background: #f4c95d; }.finance-mascot-neutral .mascot-body::after { content: "..."; background: #6e8b68; }
 @media (max-width: 430px) { .finance-mascot { min-height: 65px; }.mascot-body { width: 57px; height: 45px; }.mascot-face { width: 26px; height: 26px; } }
+
+
+/* Regra final mobile: o painel principal deve permanecer em uma única coluna. */
+@media (max-width: 720px) {
+  .sheet-main,
+  .panel-view,
+  .welcome-strip,
+  .welcome-strip.without-salary,
+  .dashboard-actions,
+  .register-card,
+  .category-columns,
+  .form-grid,
+  .mobile-summary {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .welcome-strip,
+  .welcome-strip.without-salary,
+  .dashboard-actions,
+  .form-grid,
+  .category-columns {
+    grid-template-columns: 1fr !important;
+  }
+
+  .welcome-copy,
+  .metric,
+  .dashboard-actions > button,
+  .register-card > *,
+  .category-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .mobile-summary { display: none !important; }
+}
