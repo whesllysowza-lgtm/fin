@@ -203,6 +203,7 @@ export default function Home() {
     const localDraftKey = `finance-state-draft:${userId}`;
     // Grava imediatamente um rascunho individual para proteger alterações feitas antes de um F5.
     localStorage.setItem(localDraftKey, JSON.stringify(payload));
+    notify("Salvando alteração...");
     if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current);
     persistTimerRef.current = window.setTimeout(() => void (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -210,10 +211,12 @@ export default function Home() {
       const { error } = await supabase.from("finance_state").upsert({ id: user.id, user_id: user.id, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       if (error) {
         console.warn("[Supabase] Não foi possível salvar o estado online:", error.message);
+        notify("Não foi possível salvar esta alteração. Tente novamente.");
         return;
       }
       localStorage.removeItem(localDraftKey);
       legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
+      notify("Alteração salva no Supabase.");
     })(), 350);
     return () => { if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current); };
   }, [cloudLoaded, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson]);
@@ -233,8 +236,13 @@ export default function Home() {
     const localDraftKey = `finance-state-draft:${userId}`;
     localStorage.setItem(localDraftKey, JSON.stringify(payload));
     void supabase.from("finance_state").upsert({ id: userId, user_id: userId, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).then(({ error }) => {
-      if (error) console.warn("[Supabase] Não foi possível salvar a pessoa selecionada:", error.message);
-      else localStorage.removeItem(localDraftKey);
+      if (error) {
+        console.warn("[Supabase] Não foi possível salvar a pessoa selecionada:", error.message);
+        notify("Não foi possível salvar a pessoa selecionada.");
+      } else {
+        localStorage.removeItem(localDraftKey);
+        notify("Pessoa selecionada salva no Supabase.");
+      }
     });
   };
 
