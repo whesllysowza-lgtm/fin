@@ -147,6 +147,7 @@ export default function Home() {
   const skipHistoryRef = useRef(false);
   const persistTimerRef = useRef<number | null>(null);
   const userIdRef = useRef<string | null>(null);
+  const skipNextPersistRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -169,6 +170,7 @@ export default function Home() {
       if (error) {
         console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
+        skipNextPersistRef.current = true;
         applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson });
       }
       setCloudLoaded(true);
@@ -179,6 +181,10 @@ export default function Home() {
 
   useEffect(() => {
     if (!cloudLoaded) return;
+    if (skipNextPersistRef.current) {
+      skipNextPersistRef.current = false;
+      return;
+    }
     const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson };
     if (skipHistoryRef.current) {
       skipHistoryRef.current = false;
@@ -215,7 +221,7 @@ export default function Home() {
   const selectedExpenses = useMemo(() => selectedEntries.reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
   const selectedCard = useMemo(() => selectedEntries.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
   const selectedSalary = isSalaryPerson ? summary.salary : 0;
-  const leftover = isSalaryPerson ? selectedSalary - selectedExpenses : 0;
+  const leftover = isSalaryPerson && selectedEntries.length > 0 ? selectedSalary - selectedExpenses : 0;
 
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("pt-BR");
@@ -359,7 +365,6 @@ export default function Home() {
     setExpenses([]);
     setSelectedPerson("");
     setCurrentMonth(calendarMonth());
-    setSelectedPerson("");
     setArchivedMonths([]);
     setArchivedData({});
     setEntries([]);
