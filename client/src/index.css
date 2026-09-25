@@ -1501,3 +1501,13 @@ body { background: var(--theme-background, #f5f8f3); }
 .history-table { max-width: 100%; overflow-x: auto; }
 .table-head, .table-row { min-width: 430px; }
 @media (max-width: 420px) { .sheet-main { padding-left: 10px; padding-right: 10px; } .register-card { padding: 14px 12px; } .table-head, .table-row { min-width: 400px; } }
+
+
+/* Histórico compacto: todas as colunas visíveis em telas estreitas */
+.history-table { width: 100%; max-width: 100%; overflow: hidden; }
+.table-head, .table-row { min-width: 0 !important; width: 100%; grid-template-columns: .85fr .95fr 1.05fr .8fr; gap: 3px; padding: 0 5px; font-size: 9px; }
+.table-head { min-height: 34px; font-size: 9px; }
+.table-row { min-height: 40px; line-height: 1.15; }
+.table-row > *, .table-head > * { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+.table-row strong { font-size: 9px; white-space: nowrap; }
+@media (max-width: 420px) { .table-head, .table-row { grid-template-columns: .78fr .86fr 1fr .72fr; gap: 2px; padding: 0 3px; font-size: 8px; } .table-head { font-size: 8px; } .table-row strong { font-size: 8px; } }
