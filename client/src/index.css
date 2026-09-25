@@ -1411,3 +1411,9 @@ html, body, #root { min-height: 100%; height: auto !important; overflow-x: hidde
   .balance-face span::before { font-size: 42px !important; }
   .balance-face small { flex: 1 1 auto !important; min-width: 0 !important; white-space: normal !important; overflow: visible !important; line-height: 1.25 !important; }
 }
+
+
+/* Mascote: cachorro inteiro, não apenas cabeça. */
+.balance-face span { display: grid !important; place-items: center !important; width: 72px !important; height: 72px !important; flex-basis: 72px !important; border-radius: 18px !important; font-size: 0 !important; }
+.balance-face span::before { content: "🐕‍🦺" !important; font-size: 52px !important; line-height: 1 !important; }
+@media (max-width: 720px) { .balance-face span { width: 72px !important; height: 72px !important; flex-basis: 72px !important; } .balance-face span::before { font-size: 52px !important; } }
