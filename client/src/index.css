@@ -1300,3 +1300,8 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .sheet-app .panel-view > .welcome-strip .metric { min-height: 38px !important; padding: 6px 7px !important; }
 .sheet-app .panel-view > .welcome-strip .metric span { font-size: 11px; }
 .sheet-app .panel-view > .welcome-strip .metric strong { margin-top: 0; font-size: 16px; }
+
+/* O menu inferior foi removido; devolve o espaço ao conteúdo em telas pequenas. */
+@media (max-width: 720px) {
+  .sheet-main { padding-bottom: 24px !important; }
+}
