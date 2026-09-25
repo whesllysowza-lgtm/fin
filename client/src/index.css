@@ -1325,3 +1325,8 @@ body { background: #edf5ea; }
   .sheet-main { padding-bottom: 28px !important; }
   .balance-face { bottom: calc(18px + env(safe-area-inset-bottom)); }
 }
+
+
+/* Mascote canino: mantém as reações, mas usa cachorro como identidade visual. */
+.balance-face span { font-size: 0; }
+.balance-face span::before { content: "🐶"; font-size: 25px; line-height: 1; }
