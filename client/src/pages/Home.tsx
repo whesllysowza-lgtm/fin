@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { BarChart3, Bot, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays, LogOut } from "lucide-react";
+import { BarChart3, Bot, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays, LogOut, Eye, EyeOff } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FinanceAssistant from "@/components/FinanceAssistant";
 
@@ -51,6 +51,12 @@ function readIndicatorSettings(): Record<string, IndicatorSettings> {
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const legacyStorageKeys = ["wesly-people", "wesly-origins", "wesly-expenses", "wesly-current-month", "wesly-archived-months", "wesly-archived-data", "wesly-current-entries", "wesly-monthly-summaries", "wesly-indicator-settings"];
+
+function parseAmount(input: string) {
+  const value = input.trim().replace(/[R$\s]/g, "").replace(/;/g, ",");
+  const normalized = value.includes(",") && value.includes(".") ? value.replace(/\./g, "").replace(",", ".") : value.replace(",", ".");
+  return Number(normalized);
+}
 
 function readLegacyState(): Record<string, unknown> | null {
   try {
@@ -127,6 +133,7 @@ export default function Home() {
   const [showYearOverview, setShowYearOverview] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
   const [salaryDraft, setSalaryDraft] = useState("");
+  const [showSalary, setShowSalary] = useState(false);
   const [indicatorSettings, setIndicatorSettings] = useState<Record<string, IndicatorSettings>>(readIndicatorSettings);
   const [palette, setPalette] = useState<ThemePalette>(defaultPalette);
   const [alertEmail, setAlertEmail] = useState("wesleyflamengo23@hotmail.com");
@@ -197,12 +204,13 @@ export default function Home() {
     })(), 350);
     return () => { if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current); };
   }, [cloudLoaded, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail]);
+  const salaryPerson = people[0] || "Wesly";
   const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
   const selectedExpenses = useMemo(() => selectedEntries.reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
   const selectedCard = useMemo(() => selectedEntries.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
-  const selectedSalary = selectedPerson === "Wesly" ? summary.salary : 0;
-  const leftover = selectedPerson === "Wesly" ? selectedSalary - selectedExpenses : 0;
+  const selectedSalary = selectedPerson === salaryPerson ? summary.salary : 0;
+  const leftover = selectedPerson === salaryPerson ? selectedSalary - selectedExpenses : 0;
 
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("pt-BR");
@@ -255,7 +263,7 @@ export default function Home() {
   }, [canUndo]);
 
   const openSalaryEditor = () => {
-    if (selectedPerson !== "Wesly") return;
+    if (selectedPerson !== salaryPerson) return;
     setSalaryDraft(String(summary.salary).replace(".", ","));
     setShowSalaryEditor(true);
   };
@@ -268,7 +276,7 @@ export default function Home() {
   };
 
   const saveSalary = () => {
-    const salary = Number(salaryDraft.replace(/[^0-9,.-]/g, "").replace(",", "."));
+    const salary = parseAmount(salaryDraft);
     if (!Number.isFinite(salary) || salary < 0) {
       notify("Informe um salário válido.");
       return;
@@ -330,17 +338,17 @@ export default function Home() {
     const removed = lists[kind][index];
     const setters = { people: setPeople, origins: setOrigins, expenses: setExpenses };
     setters[kind]((current) => current.filter((_, itemIndex) => itemIndex !== index));
-    if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || "Wesly");
+    if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || salaryPerson);
   };
 
   const requestNewMonth = () => setShowNewMonthConfirm(true);
 
   const openAccount = () => setShowYearOverview(true);
-  const settingsForPerson: IndicatorSettings = indicatorSettings[selectedPerson] || (selectedPerson === "Wesly"
+  const settingsForPerson: IndicatorSettings = indicatorSettings[selectedPerson] || (selectedPerson === salaryPerson
     ? { salary: true, expenses: true, leftover: true, card: true }
     : { salary: false, expenses: true, leftover: false, card: true });
   const updateIndicator = (key: IndicatorKey, visible: boolean) => setIndicatorSettings((current) => ({ ...current, [selectedPerson]: { ...(current[selectedPerson] || settingsForPerson), [key]: visible } }));
-  const configurableIndicators: [IndicatorKey, string][] = selectedPerson === "Wesly" ? [["salary", "Salário"], ["expenses", "Despesas"], ["leftover", "Sobrou"], ["card", "Gastos com cartão"]] : [["expenses", "Despesas"], ["card", "Gastos com cartão"]];
+  const configurableIndicators: [IndicatorKey, string][] = selectedPerson === salaryPerson ? [["salary", "Salário"], ["expenses", "Despesas"], ["leftover", "Sobrou"], ["card", "Gastos com cartão"]] : [["expenses", "Despesas"], ["card", "Gastos com cartão"]];
   const goToCurrentMonth = () => {
     const realMonth = calendarMonth();
     if (currentMonth === realMonth) { setTab("PAINEL"); notify(`Você já está no mês atual: ${realMonth}.`); return; }
@@ -395,7 +403,7 @@ export default function Home() {
 
   const register = (event: FormEvent) => {
     event.preventDefault();
-    const value = Number(form.value.replace(",", "."));
+    const value = parseAmount(form.value);
     if (!form.person || !form.origin || !form.expense || !value) {
       notify("Preencha pessoa, origem, despesa e valor.");
       return;
@@ -413,7 +421,7 @@ export default function Home() {
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
         {message && <div className="sheet-message" role="status">{message}</div>}
-        {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} expenses={selectedExpenses} leftover={leftover} card={selectedCard} selectedPerson={selectedPerson} onPersonChange={setSelectedPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} onChart={() => setShowChart(true)} />}
+        {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} showSalary={showSalary} onToggleSalary={() => setShowSalary((current) => !current)} expenses={selectedExpenses} leftover={leftover} card={selectedCard} selectedPerson={selectedPerson} onPersonChange={setSelectedPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} onChart={() => setShowChart(true)} />}
         {tab === "REGISTRO" && <Register form={form} setForm={setForm} onSubmit={register} people={people} origins={origins} expenses={expenses} />}
         {tab === "HISTÓRICO" && <HistoryView entries={filteredEntries} allEntries={selectedEntries} search={search} setSearch={setSearch} month={currentMonth} archivedMonths={archivedMonths} archivedData={archivedData} summaries={summaries} person={selectedPerson} onEdit={editEntry} onDelete={deleteEntry} />}
         {tab === "CATEGORIAS" && <CategoriesView people={people} origins={origins} expenses={expenses} onRename={updateCategory} onAdd={addCategory} onRemove={removeCategory} />}
@@ -429,7 +437,7 @@ export default function Home() {
   );
 }
 
-function Dashboard({ people, settings, month, archivedMonths, salary, expenses, leftover, card, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth, onEditSalary, onChart }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; expenses: number; leftover: number; card: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void; onEditSalary: () => void; onChart: () => void }) {
+function Dashboard({ people, settings, month, archivedMonths, salary, showSalary, onToggleSalary, expenses, leftover, card, selectedPerson, onPersonChange, onRegister, onHistory, onCurrentMonth, onEditSalary, onChart }: { people: string[]; settings: IndicatorSettings; month: string; archivedMonths: string[]; salary: number; showSalary: boolean; onToggleSalary: () => void; expenses: number; leftover: number; card: number; selectedPerson: string; onPersonChange: (name: string) => void; onRegister: () => void; onHistory: () => void; onCurrentMonth: () => void; onEditSalary: () => void; onChart: () => void }) {
   const face = expenses === 0 ? "😐" : leftover > 0 ? "🙂" : "😟";
   const faceLabel = expenses === 0 ? "Ainda sem lançamentos" : leftover > 0 ? "Saldo positivo" : "Atenção aos gastos";
   return (
@@ -437,7 +445,7 @@ function Dashboard({ people, settings, month, archivedMonths, salary, expenses, 
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
       <div className={`welcome-strip ${!settings.salary ? "without-salary" : ""}`}>
         <div className="welcome-copy"><span>Bem vindo,</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome">{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
-        {settings.salary && <Metric label="Salário" value={salary} editable onClick={onEditSalary} />}
+        {settings.salary && <Metric label="Salário" value={salary} visible={showSalary} onToggleVisibility={onToggleSalary} editable onClick={onEditSalary} />}
         {settings.expenses && <Metric label="Despesas" value={expenses} />}
         {settings.leftover && <Metric label="Sobrou" value={leftover} />}
         {settings.card && <Metric label="Gastos com cartão" value={card} />}
@@ -459,9 +467,9 @@ function ChartModal({ month, people, entries, onClose }: { month: string; people
   return <div className="chart-backdrop" role="presentation" onClick={onClose}><div className="chart-modal" role="dialog" aria-modal="true" aria-labelledby="chart-title" onClick={(event) => event.stopPropagation()}><div className="chart-heading"><div><span className="modal-kicker">VISÃO DO MÊS</span><h2 id="chart-title">Gastos por pessoa</h2><p>{month} · total lançado no mês atual</p></div><button type="button" className="settings-close" onClick={onClose} aria-label="Fechar gráfico"><X size={18} /></button></div><div className="chart-canvas"><ResponsiveContainer width="100%" height="100%"><BarChart data={data} margin={{ top: 10, right: 8, left: 0, bottom: 8 }}><CartesianGrid stroke="#e5efe2" vertical={false} /><XAxis dataKey="name" tick={{ fill: "#6e8469", fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: "#8a9984", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(value) => `R$ ${value}`} /><Tooltip formatter={(value) => [brl.format(Number(value)), "Gastos"]} contentStyle={{ borderRadius: 12, border: "1px solid #d5e8d0", boxShadow: "0 8px 22px rgba(53,91,47,.12)" }} /><Bar dataKey="total" name="Gastos" fill="#5da653" radius={[7, 7, 0, 0]} /></BarChart></ResponsiveContainer></div><div className="chart-total">Total do mês: <strong>{brl.format(data.reduce((sum, item) => sum + item.total, 0))}</strong></div></div></div>;
 }
 
-function Metric({ label, value, editable, onClick }: { label: string; value: number; editable?: boolean; onClick?: () => void }) {
-  const content = <><span>{label}{editable && <small className="metric-edit-hint"> editar</small>}</span><strong>{brl.format(value)}</strong></>;
-  return editable ? <button type="button" className="metric metric-editable" onClick={onClick} aria-label={`Editar ${label}`}>{content}</button> : <div className="metric">{content}</div>;
+function Metric({ label, value, visible = true, onToggleVisibility, editable, onClick }: { label: string; value: number; visible?: boolean; onToggleVisibility?: () => void; editable?: boolean; onClick?: () => void }) {
+  const content = <><span>{label}{editable && <small className="metric-edit-hint"> editar</small>}{onToggleVisibility && <button type="button" className="salary-visibility-button" onClick={(event) => { event.stopPropagation(); onToggleVisibility(); }} aria-label={visible ? "Ocultar salário" : "Mostrar salário"} title={visible ? "Ocultar salário" : "Mostrar salário"}>{visible ? <Eye size={15} /> : <EyeOff size={15} />}</button>}</span><strong>{visible ? brl.format(value) : "R$ •••••"}</strong></>;
+  return editable ? <div className="metric metric-editable" onClick={onClick} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onClick?.(); }} role="button" tabIndex={0} aria-label={`Editar ${label}`}>{content}</div> : <div className="metric">{content}</div>;
 }
 
 function Register({ form, setForm, onSubmit, people, origins, expenses }: { people: string[]; origins: string[]; expenses: string[]; form: { person: string; origin: string; expense: string; value: string }; setForm: React.Dispatch<React.SetStateAction<{ person: string; origin: string; expense: string; value: string }>>; onSubmit: (event: FormEvent) => void }) {
@@ -501,7 +509,7 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
     setExportMessage(`${exportMonth} exportado com ${exportEntries.length} lançamento(s).`);
     window.setTimeout(() => setExportMessage(""), 2800);
   };
-  return <section className="history-view"><div className="section-title"><span>HISTÓRICO</span><h1>Lançamentos registrados</h1><p>Registros de {month} para {person}. Meses anteriores ficam ocultos.</p></div><div className="export-panel"><div><span>EXPORTAR PLANILHA</span><strong>Escolha o mês desejado</strong></div><div className="export-controls"><select className="export-month-select" value={exportMonth} onChange={(event) => setExportMonth(event.target.value)} aria-label="Mês para exportar">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="export-button" onClick={exportSpreadsheet}><Download size={16} /> Exportar</button></div></div>{exportMessage && <div className="export-message" role="status">{exportMessage}</div>}<div className="history-toolbar"><div className="sheet-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar pessoa, origem ou despesa" />{search && <button type="button" onClick={(event) => { event.preventDefault(); setSearch(""); }} aria-label="Limpar pesquisa"><X size={15} /></button>}</div></div>{Object.keys(archivedData).length > 0 && <button type="button" className="archived-toggle" onClick={() => setShowArchived((current) => !current)}>{showArchived ? "Ocultar meses anteriores" : "Mostrar meses anteriores"}</button>}<div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span></div>{rows(entries, month)}{entries.length === 0 && <div className="no-results">Nenhum registro registrado em {month}.</div>}</div>{showArchived && Object.entries(archivedData).map(([archiveMonth, archiveEntries]) => <div className="archive-block" key={archiveMonth}><div className="archive-heading">{archiveMonth} salvo</div><div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span></div>{rows(archiveEntries, archiveMonth)}</div></div>)}{editing && draft && <div className="edit-entry-backdrop" role="presentation"><div className="edit-entry-modal" role="dialog" aria-modal="true"><span className="modal-kicker">EDITAR LANÇAMENTO</span><h2>{editing.month}</h2><input value={draft.person} onChange={(event) => setDraft({ ...draft, person: event.target.value })} aria-label="Pessoa" /><input value={draft.origin} onChange={(event) => setDraft({ ...draft, origin: event.target.value })} aria-label="Origem" /><input value={draft.expense} onChange={(event) => setDraft({ ...draft, expense: event.target.value })} aria-label="Despesa" /><input inputMode="decimal" value={String(draft.value).replace(".", ",")} onChange={(event) => setDraft({ ...draft, value: Number(event.target.value.replace(",", ".")) || 0 })} aria-label="Valor" /><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => { setEditing(null); setDraft(null); }}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveEdit}>Salvar</button></div></div></div>}</section>;
+  return <section className="history-view"><div className="section-title"><span>HISTÓRICO</span><h1>Lançamentos registrados</h1><p>Registros de {month} para {person}. Meses anteriores ficam ocultos.</p></div><div className="export-panel"><div><span>EXPORTAR PLANILHA</span><strong>Escolha o mês desejado</strong></div><div className="export-controls"><select className="export-month-select" value={exportMonth} onChange={(event) => setExportMonth(event.target.value)} aria-label="Mês para exportar">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="export-button" onClick={exportSpreadsheet}><Download size={16} /> Exportar</button></div></div>{exportMessage && <div className="export-message" role="status">{exportMessage}</div>}<div className="history-toolbar"><div className="sheet-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar pessoa, origem ou despesa" />{search && <button type="button" onClick={(event) => { event.preventDefault(); setSearch(""); }} aria-label="Limpar pesquisa"><X size={15} /></button>}</div></div>{Object.keys(archivedData).length > 0 && <button type="button" className="archived-toggle" onClick={() => setShowArchived((current) => !current)}>{showArchived ? "Ocultar meses anteriores" : "Mostrar meses anteriores"}</button>}<div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span></div>{rows(entries, month)}{entries.length === 0 && <div className="no-results">Nenhum registro registrado em {month}.</div>}</div>{showArchived && Object.entries(archivedData).map(([archiveMonth, archiveEntries]) => <div className="archive-block" key={archiveMonth}><div className="archive-heading">{archiveMonth} salvo</div><div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span></div>{rows(archiveEntries, archiveMonth)}</div></div>)}{editing && draft && <div className="edit-entry-backdrop" role="presentation"><div className="edit-entry-modal" role="dialog" aria-modal="true"><span className="modal-kicker">EDITAR LANÇAMENTO</span><h2>{editing.month}</h2><input value={draft.person} onChange={(event) => setDraft({ ...draft, person: event.target.value })} aria-label="Pessoa" /><input value={draft.origin} onChange={(event) => setDraft({ ...draft, origin: event.target.value })} aria-label="Origem" /><input value={draft.expense} onChange={(event) => setDraft({ ...draft, expense: event.target.value })} aria-label="Despesa" /><input inputMode="decimal" value={String(draft.value).replace(".", ",")} onChange={(event) => setDraft({ ...draft, value: parseAmount(event.target.value) || 0 })} aria-label="Valor" /><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => { setEditing(null); setDraft(null); }}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveEdit}>Salvar</button></div></div></div>}</section>;
 }
 
 function CategoriesView({ people, origins, expenses, onRename, onAdd, onRemove }: { people: string[]; origins: string[]; expenses: string[]; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
