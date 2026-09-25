@@ -166,7 +166,10 @@ export default function Home() {
       const localDraftKey = `finance-state-draft:${user.id}`;
       let localDraft: Record<string, unknown> | null = null;
       try { localDraft = JSON.parse(localStorage.getItem(localDraftKey) || "null") as Record<string, unknown> | null; } catch { localDraft = null; }
-      const cloudPayload = (localDraft || data?.payload) as Record<string, unknown> | null;
+      const cloudState = data?.payload as Record<string, unknown> | null;
+      const cloudPayload = localDraft && cloudState
+        ? { ...cloudState, ...localDraft, selectedPerson: typeof localDraft.selectedPerson === "string" && localDraft.selectedPerson.trim() ? localDraft.selectedPerson : cloudState.selectedPerson }
+        : (localDraft || cloudState) as Record<string, unknown> | null;
       if (error) {
         console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
@@ -222,6 +225,18 @@ export default function Home() {
   const selectedCard = useMemo(() => selectedEntries.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
   const selectedSalary = isSalaryPerson ? summary.salary : 0;
   const leftover = isSalaryPerson && selectedExpenses > 0 ? selectedSalary - selectedExpenses : 0;
+  const selectPerson = (name: string) => {
+    setSelectedPerson(name);
+    const userId = userIdRef.current;
+    if (!userId) return;
+    const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson: name };
+    const localDraftKey = `finance-state-draft:${userId}`;
+    localStorage.setItem(localDraftKey, JSON.stringify(payload));
+    void supabase.from("finance_state").upsert({ id: userId, user_id: userId, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).then(({ error }) => {
+      if (error) console.warn("[Supabase] Não foi possível salvar a pessoa selecionada:", error.message);
+      else localStorage.removeItem(localDraftKey);
+    });
+  };
 
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("pt-BR");
@@ -485,7 +500,7 @@ export default function Home() {
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
         {message && <div className="sheet-message" role="status">{message}</div>}
-        {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} showSalary={showSalary} onToggleSalary={() => setShowSalary((current) => !current)} expenses={selectedExpenses} leftover={leftover} card={selectedCard} selectedPerson={selectedPerson} onPersonChange={setSelectedPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} onChart={() => setShowChart(true)} />}
+        {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} showSalary={showSalary} onToggleSalary={() => setShowSalary((current) => !current)} expenses={selectedExpenses} leftover={leftover} card={selectedCard} selectedPerson={selectedPerson} onPersonChange={selectPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} onChart={() => setShowChart(true)} />}
         {tab === "REGISTRO" && <Register form={form} setForm={setForm} onSubmit={register} people={people} origins={origins} expenses={expenses} />}
         {tab === "HISTÓRICO" && <HistoryView entries={filteredEntries} allEntries={selectedEntries} search={search} setSearch={setSearch} month={currentMonth} archivedMonths={archivedMonths} archivedData={archivedData} summaries={summaries} person={selectedPerson} onEdit={editEntry} onDelete={deleteEntry} />}
         {tab === "CATEGORIAS" && <CategoriesView people={people} origins={origins} expenses={expenses} onRename={updateCategory} onAdd={addCategory} onRemove={removeCategory} />}
