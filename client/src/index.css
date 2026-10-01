@@ -1363,3 +1363,5 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 @media (prefers-reduced-motion: reduce) {
   .sheet-app .welcome-strip.negative-balance { animation: none; }
 }
+.reminder-settings-section { margin-top: 18px; padding: 15px; border: 1px solid #d4e8ce; border-radius: 15px; background: #f2faef; }.reminder-settings-section p { margin: 5px 0 0; color: #768274; font-size: 11px; line-height: 1.45; }.reminder-settings-controls { display: flex; align-items: end; gap: 10px; margin-top: 12px; }.reminder-settings-controls .field-label { flex: 1; }.reminder-settings-controls .sheet-input { height: 40px; margin-top: 5px; }.reminder-toggle { min-height: 40px; padding: 0 12px; border-radius: 10px; color: #2e6f25; background: #dcefd7; font-size: 11px; font-weight: 800; }.reminder-toggle.enabled { color: #fff; background: #2e6f25; }.reminder-status { display: block; margin-top: 9px; color: #56834d; font-size: 10px; }
+@media (max-width: 520px) { .reminder-settings-controls { align-items: stretch; flex-direction: column; }.reminder-toggle { width: 100%; } }
