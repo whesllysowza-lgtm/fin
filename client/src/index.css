@@ -50,6 +50,7 @@
 @media (max-width: 720px) { .export-panel { display: block; }.export-controls { margin-top: 11px; }.export-month-select { flex: 1; max-width: none; }.export-button { flex: 0 0 auto; } }
 
 .account-button { border: 0; text-align: left; background: transparent; }.account-button > span:last-child { display: block; }.account-button:hover .sheet-logo { transform: scale(1.04); }.account-button:active { transform: scale(.98); }.month-chip { border: 0; cursor: pointer; }.month-chip:hover { background: #e3f3df; }
+.install-app-button { position: fixed; right: 16px; bottom: 18px; z-index: 30; min-height: 42px; padding: 0 15px; border: 1px solid #c6e0bd; border-radius: 14px; color: #fff; background: #2e6f25; box-shadow: 0 10px 24px rgba(46,111,37,.24); font-size: 12px; font-weight: 800; }.install-app-button:hover { background: #245b1e; }
 
 .welcome-strip.without-salary { grid-template-columns: 1.25fr repeat(3, 1fr); }
 @media (max-width: 720px) { .welcome-strip.without-salary { grid-template-columns: 1fr 1fr; } }
