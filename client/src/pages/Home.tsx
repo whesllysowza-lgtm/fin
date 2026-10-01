@@ -172,6 +172,8 @@ export default function Home() {
         : (localDraft || cloudState) as Record<string, unknown> | null;
       if (error) {
         console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
+        notify("Não foi possível carregar seus dados. Nenhuma informação será sobrescrita.");
+        return;
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
         skipNextPersistRef.current = true;
         applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson });
@@ -419,7 +421,11 @@ export default function Home() {
       if (user?.id === userId) {
         const { error } = await supabase.from("finance_state").upsert({ id: userId, user_id: userId, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
         if (!error) localStorage.removeItem(localDraftKey);
-        else console.warn("[Supabase] Não foi possível salvar antes do logout:", error.message);
+        else {
+          console.warn("[Supabase] Não foi possível salvar antes do logout:", error.message);
+          notify("Não foi possível salvar seus dados. Você continua conectado para tentar novamente.");
+          return;
+        }
       }
     }
     await supabase.auth.signOut();
@@ -571,6 +577,9 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
   const [exportMonth, setExportMonth] = useState(month);
   const [exportMessage, setExportMessage] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  useEffect(() => {
+    if (Object.keys(archivedData).length > 0) setShowArchived(true);
+  }, [archivedData]);
   const [editing, setEditing] = useState<{ month: string; entry: Entry } | null>(null);
   const [draft, setDraft] = useState<Entry | null>(null);
   const startEdit = (archiveMonth: string, entry: Entry) => { setEditing({ month: archiveMonth, entry }); setDraft({ ...entry }); };
