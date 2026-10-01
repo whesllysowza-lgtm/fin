@@ -1,0 +1,36 @@
+{
+  "name": "Wesly — Controle financeiro",
+  "short_name": "Finanças Wesly",
+  "description": "Controle financeiro pessoal otimizado para celular",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#2e6f25",
+  "background_color": "#f5f8f3",
+  "icons": [
+    {
+      "src": "/icons/finance-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Registrar despesa",
+      "short_name": "Registrar",
+      "description": "Abrir o registro de uma nova despesa",
+      "url": "/?tab=REGISTRO",
+      "icons": [{ "src": "/icons/finance-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Abrir histórico",
+      "short_name": "Histórico",
+      "description": "Consultar os lançamentos financeiros",
+      "url": "/?tab=HISTÓRICO",
+      "icons": [{ "src": "/icons/finance-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}
