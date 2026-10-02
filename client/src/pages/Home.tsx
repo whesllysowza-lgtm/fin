@@ -156,13 +156,13 @@ export default function Home() {
   const skipNextPersistRef = useRef(false);
 
   useEffect(() => {
-    const title = accountLabel !== "usuário" ? `Finanças de ${accountLabel}` : "Wesly — Controle financeiro";
+    const title = accountLabel !== "usuário" ? `Finanças de ${accountLabel}` : "Finanças";
     document.title = title;
     const appTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
     appTitle?.setAttribute("content", title);
     return () => {
-      document.title = "Wesly — Controle financeiro";
-      appTitle?.setAttribute("content", "Wesly — Controle financeiro");
+      document.title = "Finanças";
+      appTitle?.setAttribute("content", "Finanças");
     };
   }, [accountLabel]);
 
