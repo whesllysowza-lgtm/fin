@@ -1,4 +1,4 @@
-const CACHE_NAME = "financas-wesly-v2";
+const CACHE_NAME = "financas-wesly-v3";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/icons/finance-icon.svg"];
 
 self.addEventListener("install", (event) => {
