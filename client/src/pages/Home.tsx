@@ -156,6 +156,17 @@ export default function Home() {
   const skipNextPersistRef = useRef(false);
 
   useEffect(() => {
+    const title = accountLabel !== "usuário" ? `Finanças de ${accountLabel}` : "Wesly — Controle financeiro";
+    document.title = title;
+    const appTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    appTitle?.setAttribute("content", title);
+    return () => {
+      document.title = "Wesly — Controle financeiro";
+      appTitle?.setAttribute("content", "Wesly — Controle financeiro");
+    };
+  }, [accountLabel]);
+
+  useEffect(() => {
     let active = true;
     const loadCloudState = async () => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
