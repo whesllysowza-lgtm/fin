@@ -147,6 +147,7 @@ export default function Home() {
   const [reminderTime, setReminderTime] = useState("20:00");
   const [accountLabel, setAccountLabel] = useState("usuário");
   const [cloudLoaded, setCloudLoaded] = useState(false);
+  const [cloudLoadError, setCloudLoadError] = useState("");
   const [canUndo, setCanUndo] = useState(false);
   const lastSnapshotRef = useRef<AppSnapshot | null>(null);
   const undoSnapshotRef = useRef<AppSnapshot | null>(null);
@@ -184,12 +185,13 @@ export default function Home() {
       let localDraft: Record<string, unknown> | null = null;
       try { localDraft = JSON.parse(localStorage.getItem(localDraftKey) || "null") as Record<string, unknown> | null; } catch { localDraft = null; }
       const cloudState = data?.payload as Record<string, unknown> | null;
-      const cloudPayload = localDraft && cloudState
-        ? { ...cloudState, ...localDraft, selectedPerson: typeof localDraft.selectedPerson === "string" && localDraft.selectedPerson.trim() ? localDraft.selectedPerson : cloudState.selectedPerson }
-        : (localDraft || cloudState) as Record<string, unknown> | null;
+      // O estado online é a fonte principal para contas já existentes.
+      // Um rascunho local vazio não pode substituir os dados do Supabase.
+      const cloudPayload = (cloudState || localDraft) as Record<string, unknown> | null;
       if (error) {
         console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
-        notify("Não foi possível carregar seus dados. Nenhuma informação será sobrescrita.");
+        setCloudLoadError("Não foi possível carregar seus dados salvos. Tente atualizar a página.");
+        setCloudLoaded(true);
         return;
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
         skipNextPersistRef.current = true;
@@ -202,7 +204,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!cloudLoaded) return;
+    if (!cloudLoaded || cloudLoadError) return;
     if (skipNextPersistRef.current) {
       skipNextPersistRef.current = false;
       return;
@@ -238,7 +240,7 @@ export default function Home() {
       notify("Alteração salva no Supabase.");
     })(), 350);
     return () => { if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current); };
-  }, [cloudLoaded, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime]);
+  }, [cloudLoaded, cloudLoadError, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime]);
   const salaryPerson = people[0] || "";
   const isSalaryPerson = Boolean(selectedPerson) && selectedPerson === salaryPerson;
   const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
@@ -556,6 +558,8 @@ export default function Home() {
     ? leftover < 0 ? "#f3d7d2" : leftover > 0 ? "#d9f0d3" : "#edf2e8"
     : selectedExpenses > 0 ? "#e4efd8" : "#edf2e8";
 
+  if (!cloudLoaded) return <div className="auth-loading">Carregando seus dados salvos...</div>;
+  if (cloudLoadError) return <div className="auth-loading">{cloudLoadError}</div>;
   return (
     <div className="sheet-app" style={{ "--theme-primary": palette.primary, "--theme-background": palette.background, "--theme-card": palette.card, "--theme-text": palette.text, "--theme-gradient-accent": gradientAccent } as React.CSSProperties}>
       <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {accountLabel}</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="top-icon assistant-top-button" type="button" onClick={() => setShowAssistant(true)} aria-label="Abrir assistente financeiro" title="Manus Finanças"><Bot size={18} /></button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void handleSignOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
