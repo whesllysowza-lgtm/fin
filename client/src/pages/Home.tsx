@@ -12,7 +12,7 @@ type ThemePalette = { primary: string; background: string; card: string; text: s
 const emptyMonthlySummary = (): MonthlySummary => ({ salary: 0, expenses: 0, card: 0 });
 
 const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
-type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string; selectedPerson: string; reminderEnabled: boolean; reminderTime: string };
+type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; paidExpenses: Record<string, boolean>; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string; selectedPerson: string; reminderEnabled: boolean; reminderTime: string };
 
 const initialEntries: Entry[] = [
   { id: 1, person: "Vanessa", origin: "CARTÃO", expense: "FATURA", value: 10.9 },
@@ -81,6 +81,7 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   setPeople: (value: string[]) => void;
   setOrigins: (value: string[]) => void;
   setExpenses: (value: string[]) => void;
+  setPaidExpenses: (value: Record<string, boolean>) => void;
   setEntries: (value: Entry[]) => void;
   setArchivedMonths: (value: string[]) => void;
   setArchivedData: (value: Record<string, Entry[]>) => void;
@@ -97,6 +98,7 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   if (Array.isArray(payload.people)) setters.setPeople(payload.people as string[]);
   if (Array.isArray(payload.origins)) setters.setOrigins(payload.origins as string[]);
   if (Array.isArray(payload.expenses)) setters.setExpenses(payload.expenses as string[]);
+  if (payload.paidExpenses && typeof payload.paidExpenses === "object") setters.setPaidExpenses(payload.paidExpenses as Record<string, boolean>);
   if (Array.isArray(payload.entries)) setters.setEntries(payload.entries as Entry[]);
   if (Array.isArray(payload.archivedMonths)) setters.setArchivedMonths(payload.archivedMonths as string[]);
   if (payload.archivedData && typeof payload.archivedData === "object") setters.setArchivedData(payload.archivedData as Record<string, Entry[]>);
@@ -123,6 +125,7 @@ export default function Home() {
   const [people, setPeople] = useState<string[]>(defaultPeople);
   const [origins, setOrigins] = useState<string[]>(defaultOrigins);
   const [expenses, setExpenses] = useState<string[]>(defaultExpenses);
+  const [paidExpenses, setPaidExpenses] = useState<Record<string, boolean>>({});
   const [selectedPerson, setSelectedPerson] = useState("");
   const [currentMonth, setCurrentMonth] = useState(calendarMonth);
   const [archivedMonths, setArchivedMonths] = useState<string[]>([]);
@@ -195,7 +198,7 @@ export default function Home() {
         return;
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
         skipNextPersistRef.current = true;
-        applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime });
+        applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime });
       }
       setCloudLoaded(true);
     };
@@ -209,7 +212,7 @@ export default function Home() {
       skipNextPersistRef.current = false;
       return;
     }
-    const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime };
+    const payload: AppSnapshot = { people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime };
     if (skipHistoryRef.current) {
       skipHistoryRef.current = false;
       undoSnapshotRef.current = null;
@@ -240,7 +243,7 @@ export default function Home() {
       notify("Alteração salva no Supabase.");
     })(), 350);
     return () => { if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current); };
-  }, [cloudLoaded, cloudLoadError, people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime]);
+  }, [cloudLoaded, cloudLoadError, people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime]);
   const salaryPerson = people[0] || "";
   const isSalaryPerson = Boolean(selectedPerson) && selectedPerson === salaryPerson;
   const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
@@ -256,7 +259,7 @@ export default function Home() {
     setSelectedPerson(name);
     const userId = userIdRef.current;
     if (!userId) return;
-    const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson: name, reminderEnabled, reminderTime };
+    const payload: AppSnapshot = { people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson: name, reminderEnabled, reminderTime };
     const localDraftKey = `finance-state-draft:${userId}`;
     localStorage.setItem(localDraftKey, JSON.stringify(payload));
     void supabase.from("finance_state").upsert({ id: userId, user_id: userId, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).then(({ error }) => {
@@ -313,6 +316,7 @@ export default function Home() {
     setPeople(snapshot.people);
     setOrigins(snapshot.origins);
     setExpenses(snapshot.expenses);
+    setPaidExpenses(snapshot.paidExpenses);
     setEntries(snapshot.entries);
     setArchivedMonths(snapshot.archivedMonths);
     setArchivedData(snapshot.archivedData);
@@ -396,6 +400,14 @@ export default function Home() {
     } else {
       const previous = (kind === "origins" ? origins : expenses)[index];
       if (previous && previous !== name) {
+        if (kind === "expenses") {
+          setPaidExpenses((current) => {
+            if (!(previous in current)) return current;
+            const next = { ...current, [name]: current[previous] };
+            delete next[previous];
+            return next;
+          });
+        }
         setEntries((current) => current.map((entry) => kind === "origins" ? (entry.origin === previous ? { ...entry, origin: name } : entry) : (entry.expense === previous ? { ...entry, expense: name } : entry)));
         setArchivedData((current) => Object.fromEntries(Object.entries(current).map(([month, rows]) => [month, rows.map((entry) => kind === "origins" ? (entry.origin === previous ? { ...entry, origin: name } : entry) : (entry.expense === previous ? { ...entry, expense: name } : entry))])));
       }
@@ -416,8 +428,10 @@ export default function Home() {
     const removed = lists[kind][index];
     const setters = { people: setPeople, origins: setOrigins, expenses: setExpenses };
     setters[kind]((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    if (kind === "expenses") setPaidExpenses((current) => { const next = { ...current }; delete next[removed]; return next; });
     if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || "");
   };
+  const togglePaidExpense = (expense: string) => setPaidExpenses((current) => ({ ...current, [expense]: !current[expense] }));
 
   const requestNewMonth = () => setShowNewMonthConfirm(true);
 
@@ -428,6 +442,7 @@ export default function Home() {
     setPeople([]);
     setOrigins([]);
     setExpenses([]);
+    setPaidExpenses({});
     setSelectedPerson("");
     setCurrentMonth(calendarMonth());
     setArchivedMonths([]);
@@ -456,7 +471,7 @@ export default function Home() {
     const userId = userIdRef.current;
     if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current);
     if (userId) {
-      const payload: AppSnapshot = { people, origins, expenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime };
+      const payload: AppSnapshot = { people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime };
       const localDraftKey = `finance-state-draft:${userId}`;
       localStorage.setItem(localDraftKey, JSON.stringify(payload));
       const { data: { user } } = await supabase.auth.getUser();
@@ -572,7 +587,7 @@ export default function Home() {
       {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} archivedMonths={archivedMonths} salary={selectedSalary} showSalary={showSalary} onToggleSalary={() => setShowSalary((current) => !current)} expenses={selectedExpenses} leftover={leftover} card={selectedCard} invoiceTotal={invoiceTotal} isAccountHolder={isSalaryPerson} selectedPerson={selectedPerson} onPersonChange={selectPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} onChart={() => setShowChart(true)} />}
         {tab === "REGISTRO" && <Register form={form} setForm={setForm} onSubmit={register} people={people} origins={origins} expenses={expenses} />}
         {tab === "HISTÓRICO" && <HistoryView entries={filteredEntries} allEntries={selectedEntries} search={search} setSearch={setSearch} month={currentMonth} archivedMonths={archivedMonths} archivedData={archivedData} summaries={summaries} person={selectedPerson} onEdit={editEntry} onDelete={deleteEntry} onMonthChange={switchMonth} />}
-        {tab === "CATEGORIAS" && <CategoriesView people={people} origins={origins} expenses={expenses} onRename={updateCategory} onAdd={addCategory} onRemove={removeCategory} />}
+        {tab === "CATEGORIAS" && <CategoriesView people={people} origins={origins} expenses={expenses} paidExpenses={paidExpenses} onTogglePaid={togglePaidExpense} onRename={updateCategory} onAdd={addCategory} onRemove={removeCategory} />}
       </main>
       {showChart && <ChartModal month={currentMonth} people={people} entries={entries} onClose={() => setShowChart(false)} />}
       {showAssistant && <FinanceAssistant person={selectedPerson} month={currentMonth} salary={selectedSalary} expenses={selectedExpenses} card={selectedCard} leftover={leftover} entries={selectedEntries} onClose={() => setShowAssistant(false)} />}
@@ -660,8 +675,8 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
   return <section className="history-view"><div className="section-title"><span>HISTÓRICO</span><h1>Lançamentos registrados</h1><p>Registros de {month} para {person}. Escolha um mês para abrir todo o sistema nesse período.</p></div><div className="history-month-picker"><label className="field-label">VISUALIZAR MÊS<select className="export-month-select" value={month} onChange={(event) => onMonthChange(event.target.value)} aria-label="Abrir outro mês">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label></div><div className="export-panel"><div><span>EXPORTAR PLANILHA</span><strong>Escolha o mês desejado</strong></div><div className="export-controls"><select className="export-month-select" value={exportMonth} onChange={(event) => setExportMonth(event.target.value)} aria-label="Mês para exportar">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="export-button" onClick={exportSpreadsheet}><Download size={16} /> Exportar</button></div></div>{exportMessage && <div className="export-message" role="status">{exportMessage}</div>}<div className="history-toolbar"><div className="sheet-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar pessoa, origem ou despesa" />{search && <button type="button" onClick={(event) => { event.preventDefault(); setSearch(""); }} aria-label="Limpar pesquisa"><X size={15} /></button>}</div></div><div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span><span>AÇÃO</span></div>{rows(entries, month)}{entries.length === 0 && <div className="no-results">Nenhum registro registrado em {month}.</div>}</div>{editing && draft && <div className="edit-entry-backdrop" role="presentation"><div className="edit-entry-modal" role="dialog" aria-modal="true"><span className="modal-kicker">EDITAR LANÇAMENTO</span><h2>{editing.month}</h2><input value={draft.person} onChange={(event) => setDraft({ ...draft, person: event.target.value })} aria-label="Pessoa" /><input value={draft.origin} onChange={(event) => setDraft({ ...draft, origin: event.target.value })} aria-label="Origem" /><input value={draft.expense} onChange={(event) => setDraft({ ...draft, expense: event.target.value })} aria-label="Despesa" /><input inputMode="decimal" value={String(draft.value).replace(".", ",")} onChange={(event) => setDraft({ ...draft, value: parseAmount(event.target.value) || 0 })} aria-label="Valor" /><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => { setEditing(null); setDraft(null); }}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveEdit}>Salvar</button></div></div></div>}</section>;
 }
 
-function CategoriesView({ people, origins, expenses, onRename, onAdd, onRemove }: { people: string[]; origins: string[]; expenses: string[]; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
-  return <section className="categories-view"><div className="section-title"><span>CATEGORIAS</span><h1>Listas editáveis</h1><p>Altere qualquer nome; a mudança é salva e atualiza os registros do sistema.</p></div><div className="category-columns"><Category title="PESSOAS" kind="people" items={people} onRename={onRename} onAdd={onAdd} onRemove={onRemove} /><Category title="ORIGEM" kind="origins" items={origins} onRename={onRename} onAdd={onAdd} onRemove={onRemove} /><Category title="DESPESAS" kind="expenses" items={expenses} onRename={onRename} onAdd={onAdd} onRemove={onRemove} /></div></section>;
+function CategoriesView({ people, origins, expenses, paidExpenses, onTogglePaid, onRename, onAdd, onRemove }: { people: string[]; origins: string[]; expenses: string[]; paidExpenses: Record<string, boolean>; onTogglePaid: (expense: string) => void; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
+  return <section className="categories-view"><div className="section-title"><span>CATEGORIAS</span><h1>Listas editáveis</h1><p>Altere qualquer nome; a mudança é salva e atualiza os registros do sistema.</p></div><div className="category-columns"><Category title="PESSOAS" kind="people" items={people} onRename={onRename} onAdd={onAdd} onRemove={onRemove} /><Category title="ORIGEM" kind="origins" items={origins} onRename={onRename} onAdd={onAdd} onRemove={onRemove} /><Category title="DESPESAS" kind="expenses" items={expenses} onRename={onRename} onAdd={onAdd} onRemove={onRemove} /></div><div className="paid-expenses-list"><div className="paid-expenses-heading"><span>LISTA DESPESAS</span><p>Marque como paga sem apagar a despesa.</p></div>{expenses.length === 0 ? <small className="quick-choices-empty">Adicione despesas na lista ao lado.</small> : expenses.map((expense) => <label className={`paid-expense-row ${paidExpenses[expense] ? "is-paid" : ""}`} key={expense}><input type="checkbox" checked={Boolean(paidExpenses[expense])} onChange={() => onTogglePaid(expense)} /><span>{expense}</span></label>)}</div></section>;
 }
 function Category({ title, kind, items, onRename, onAdd, onRemove }: { title: string; kind: "people" | "origins" | "expenses"; items: string[]; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
   const [newName, setNewName] = useState("");
