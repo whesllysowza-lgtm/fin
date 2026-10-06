@@ -1481,3 +1481,7 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
   .settings-modal .palette-preview { height: 28px; margin: 4px 0 6px; }
   .settings-modal .palette-reset { min-height: 25px; margin-top: 5px; font-size: 9px; }
 }
+/* Paleta inteligente: uma única escolha controla todo o tema */
+.smart-palette-note { margin: 7px 0 9px !important; font-size: 10px !important; line-height: 1.35 !important; color: var(--theme-text, #2f3c2d); }
+.settings-modal .palette-grid { grid-template-columns: 1fr !important; }
+.settings-modal .palette-picker { max-width: none; }
