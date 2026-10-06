@@ -1405,3 +1405,8 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
   .sheet-tabs button { min-width: 0 !important; width: 100%; padding: 0 1px; font-size: 7px; letter-spacing: -.06em; line-height: 1.05; overflow: hidden; text-overflow: clip; }
   .sheet-tabs button svg { display: none; }
 }
+/* Ajuste fino: abas um pouco maiores, ainda em uma única linha */
+@media (max-width: 720px) {
+  .sheet-tabs { gap: 1px; }
+  .sheet-tabs button { padding: 0; font-size: 8px; letter-spacing: -.07em; }
+}
