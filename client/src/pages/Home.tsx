@@ -10,6 +10,7 @@ type ThemePalette = { primary: string; background: string; card: string; text: s
 const emptyMonthlySummary = (): MonthlySummary => ({ salary: 0, expenses: 0, card: 0 });
 
 const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
+const dangerPalette: ThemePalette = { primary: "#b42318", background: "#fff5f4", card: "#fbe3e0", text: "#4a1713" };
 function smartPalette(primary: string): ThemePalette {
   const { h, s } = hexToHsl(primary);
   const intensity = Math.max(0.28, Math.min(0.78, s || 0.45));
@@ -604,14 +605,17 @@ export default function Home() {
     setTab("HISTÓRICO");
   };
 
-  const gradientAccent = isSalaryPerson
-    ? leftover < 0 ? "#f3d7d2" : leftover > 0 ? palette.card : palette.background
+  const dangerMode = isSalaryPerson && leftover <= 0;
+  const activePalette = dangerMode ? dangerPalette : palette;
+  const gradientAccent = dangerMode
+    ? dangerPalette.card
+    : isSalaryPerson && leftover > 0 ? palette.card
     : selectedExpenses > 0 ? palette.card : palette.background;
 
   if (!cloudLoaded) return <div className="auth-loading">Carregando seus dados salvos...</div>;
   if (cloudLoadError) return <div className="auth-loading">{cloudLoadError}</div>;
   return (
-    <div className={`sheet-app ${boldText ? "strong-mode" : ""}`} style={{ "--theme-primary": palette.primary, "--theme-background": palette.background, "--theme-card": palette.card, "--theme-text": palette.text, "--theme-gradient-accent": gradientAccent } as React.CSSProperties}>
+    <div className={`sheet-app ${boldText ? "strong-mode" : ""}`} style={{ "--theme-primary": activePalette.primary, "--theme-background": activePalette.background, "--theme-card": activePalette.card, "--theme-text": activePalette.text, "--theme-gradient-accent": gradientAccent } as React.CSSProperties}>
       <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" ><span className="sheet-logo">+</span><span><strong>Conta de {accountLabel}</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button type="button" className={`bold-toggle ${boldText ? "active" : ""}`} onClick={toggleBoldText} aria-label="Alternar texto em negrito" title="Alternar negrito"><Bold size={15} /></button><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void handleSignOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3], ["LISTA", ClipboardList]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
