@@ -1415,3 +1415,13 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .paid-expense-row.is-paid .paid-expense-action { color: #71836d; }
 .paid-expense-row.is-paid .paid-expense-name { color: #9aa39a; text-decoration: line-through; text-decoration-thickness: 1.5px; }
 @media (max-width: 430px) { .paid-expense-row .paid-expense-action { min-width: 100px; font-size: 10px; } }
+.zoom-control { display: inline-flex; align-items: center; height: 32px; border: 1px solid #dce9d8; border-radius: 9px; overflow: hidden; background: rgba(248,252,247,.92); }
+.zoom-control button, .bold-toggle { display: grid; place-items: center; border: 0; color: #53764d; background: transparent; cursor: pointer; }
+.zoom-control button { width: 25px; height: 30px; }
+.zoom-control button:hover, .bold-toggle:hover { background: #e8f4e4; }
+.zoom-control button:disabled { opacity: .35; cursor: not-allowed; }
+.zoom-control .zoom-level { width: 36px; border-right: 1px solid #dce9d8; border-left: 1px solid #dce9d8; font-size: 9px; font-weight: 800; }
+.bold-toggle { width: 32px; height: 32px; border: 1px solid #dce9d8; border-radius: 9px; background: rgba(248,252,247,.92); }
+.bold-toggle.active { color: #fff; background: var(--theme-primary, #2e6f25); border-color: var(--theme-primary, #2e6f25); }
+.strong-mode .sheet-main, .strong-mode .sheet-main button, .strong-mode .sheet-main input, .strong-mode .sheet-main select { font-weight: 700; }
+@media (max-width: 720px) { .zoom-control { height: 29px; } .zoom-control button { width: 22px; height: 27px; } .zoom-control .zoom-level { width: 31px; } .bold-toggle { width: 29px; height: 29px; } .top-actions { gap: 3px; } }
