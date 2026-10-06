@@ -1534,3 +1534,13 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .sheet-app .settings-row input:checked + .toggle-track { background: var(--theme-primary) !important; }
 .sheet-app .settings-row input:checked + .toggle-track span { background: var(--theme-background) !important; }
 .sheet-app .month-chip { border-color: color-mix(in srgb, var(--theme-primary) 28%, transparent) !important; background: color-mix(in srgb, var(--theme-card) 84%, var(--theme-background)) !important; }
+/* O mês atual também acompanha o estado de alerta */
+.sheet-app .sheet-brand > span:last-child > small,
+.sheet-app .month-chip,
+.sheet-app .month-chip strong {
+  color: var(--theme-primary) !important;
+}
+.sheet-app .month-chip {
+  background: color-mix(in srgb, var(--theme-card) 84%, var(--theme-background)) !important;
+  border-color: color-mix(in srgb, var(--theme-primary) 35%, transparent) !important;
+}
