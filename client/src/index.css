@@ -1512,3 +1512,25 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .sheet-app .sheet-input:focus,
 .sheet-app select:focus { border-color: var(--theme-primary) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 16%, transparent) !important; }
 .sheet-app .palette-preview { border-color: color-mix(in srgb, var(--theme-primary) 22%, transparent); }
+/* Correção final: cabeçalho e indicadores seguem sempre a cor escolhida */
+.sheet-app .sheet-logo {
+  background: var(--theme-primary) !important;
+  color: #fff !important;
+}
+.sheet-app .sheet-brand,
+.sheet-app .sheet-brand strong { color: var(--theme-text) !important; }
+.sheet-app .sheet-brand small,
+.sheet-app .month-chip { color: var(--theme-primary) !important; }
+.sheet-app .welcome-strip .metric,
+.sheet-app .mobile-summary .metric,
+.sheet-app .metric {
+  background: color-mix(in srgb, var(--theme-card) 88%, var(--theme-background)) !important;
+  border-color: color-mix(in srgb, var(--theme-primary) 25%, var(--theme-background)) !important;
+}
+.sheet-app .metric > span,
+.sheet-app .metric > strong,
+.sheet-app .metric strong { color: var(--theme-primary) !important; }
+.sheet-app .toggle-track,
+.sheet-app .settings-row input:checked + .toggle-track { background: var(--theme-primary) !important; }
+.sheet-app .settings-row input:checked + .toggle-track span { background: var(--theme-background) !important; }
+.sheet-app .month-chip { border-color: color-mix(in srgb, var(--theme-primary) 28%, transparent) !important; background: color-mix(in srgb, var(--theme-card) 84%, var(--theme-background)) !important; }
