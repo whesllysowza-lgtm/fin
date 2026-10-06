@@ -1425,3 +1425,7 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .bold-toggle.active { color: #fff; background: var(--theme-primary, #2e6f25); border-color: var(--theme-primary, #2e6f25); }
 .strong-mode .sheet-main, .strong-mode .sheet-main button, .strong-mode .sheet-main input, .strong-mode .sheet-main select { font-weight: 700; }
 @media (max-width: 720px) { .zoom-control { height: 29px; } .zoom-control button { width: 22px; height: 27px; } .zoom-control .zoom-level { width: 31px; } .bold-toggle { width: 29px; height: 29px; } .top-actions { gap: 3px; } }
+/* Zoom adaptativo: amplia o conteúdo sem cortar as laterais */
+.sheet-app { zoom: var(--ui-zoom, 1); width: calc(100% / var(--ui-zoom, 1)); max-width: calc(100% / var(--ui-zoom, 1)); margin-left: auto; margin-right: auto; }
+/* Negrito global: aplica aos textos do sistema inteiro, incluindo cabeçalho e abas */
+.strong-mode, .strong-mode button, .strong-mode input, .strong-mode select, .strong-mode textarea, .strong-mode label, .strong-mode p, .strong-mode span, .strong-mode strong, .strong-mode small, .strong-mode h1, .strong-mode h2, .strong-mode h3 { font-weight: 700; }
