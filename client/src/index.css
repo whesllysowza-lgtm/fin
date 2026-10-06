@@ -1372,3 +1372,11 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
   .settings-modal .palette-color-row input[type="color"] { width: 22px; height: 22px; min-width: 22px; border-radius: 5px; }
   .settings-modal .palette-preview { height: 28px; margin: 5px 0 6px; }
 }
+.paid-expenses-list { margin-top: 18px; padding: 16px; border: 1px solid #d8e8d4; border-radius: 16px; background: var(--theme-card, #f7fbf5); }
+.paid-expenses-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.paid-expenses-heading span { color: var(--theme-primary, #2e6f25); font-size: 12px; font-weight: 900; letter-spacing: .08em; }
+.paid-expenses-heading p { margin: 0; color: #71836d; font-size: 11px; }
+.paid-expense-row { display: flex; align-items: center; gap: 9px; min-height: 38px; padding: 0 10px; border-top: 1px solid #e5efe2; color: var(--theme-text, #2f3c2d); font-size: 13px; cursor: pointer; }
+.paid-expense-row input { width: 16px; height: 16px; accent-color: var(--theme-primary, #2e6f25); }
+.paid-expense-row.is-paid span { color: #9aa39a; text-decoration: line-through; text-decoration-thickness: 1.5px; }
+@media (max-width: 640px) { .paid-expenses-list { margin-top: 14px; padding: 13px; } .paid-expenses-heading { display: block; } .paid-expenses-heading p { margin-top: 4px; } }
