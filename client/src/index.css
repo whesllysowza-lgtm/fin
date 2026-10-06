@@ -1485,3 +1485,30 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .smart-palette-note { margin: 7px 0 9px !important; font-size: 10px !important; line-height: 1.35 !important; color: var(--theme-text, #2f3c2d); }
 .settings-modal .palette-grid { grid-template-columns: 1fr !important; }
 .settings-modal .palette-picker { max-width: none; }
+/* Todos os destaques acompanham a cor principal inteligente */
+.sheet-app .green-action {
+  background: linear-gradient(135deg, var(--theme-primary) 0%, color-mix(in srgb, var(--theme-primary) 72%, var(--theme-card)) 100%) !important;
+}
+.sheet-app .sheet-logo,
+.sheet-app .sheet-tabs button.selected,
+.sheet-app .settings-done,
+.sheet-app .register-button,
+.sheet-app .new-month-button:hover,
+.sheet-app .top-icon:hover,
+.sheet-app .undo-button:hover:not(:disabled) {
+  background-color: var(--theme-primary) !important;
+  border-color: var(--theme-primary) !important;
+}
+.sheet-app .sheet-tabs button.selected,
+.sheet-app .sheet-logo,
+.sheet-app .register-button,
+.sheet-app .settings-done { color: #fff !important; }
+.sheet-app .sheet-tabs button,
+.sheet-app .section-title > span,
+.sheet-app .palette-title,
+.sheet-app .field-label,
+.sheet-app .paid-expenses-heading span,
+.sheet-app a { color: var(--theme-primary); }
+.sheet-app .sheet-input:focus,
+.sheet-app select:focus { border-color: var(--theme-primary) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 16%, transparent) !important; }
+.sheet-app .palette-preview { border-color: color-mix(in srgb, var(--theme-primary) 22%, transparent); }
