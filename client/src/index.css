@@ -1470,3 +1470,14 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
   .settings-modal .palette-preview { height: 34px; margin: 6px 0 8px; }
   .settings-modal .settings-done { position: sticky !important; bottom: 0; z-index: 4; margin-bottom: 0; box-shadow: 0 -8px 14px rgba(255,255,255,.95); }
 }
+/* Paleta compacta em coluna única para ocupar menos espaço */
+@media (max-width: 800px) {
+  .settings-modal .palette-grid { grid-template-columns: 1fr !important; gap: 5px !important; }
+  .settings-modal .palette-picker { padding: 6px 8px; border-radius: 10px; }
+  .settings-modal .palette-picker-label { margin-bottom: 4px; font-size: 10px; }
+  .settings-modal .palette-picker-label code { font-size: 8px; }
+  .settings-modal .palette-gradient-square { height: 58px; border-radius: 6px; }
+  .settings-modal .palette-hue-slider { height: 10px; margin: 4px 0; }
+  .settings-modal .palette-preview { height: 28px; margin: 4px 0 6px; }
+  .settings-modal .palette-reset { min-height: 25px; margin-top: 5px; font-size: 9px; }
+}
