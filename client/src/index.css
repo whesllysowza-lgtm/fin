@@ -1426,3 +1426,16 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .sheet-app .sheet-tabs button { font-size: 9px; }
 @media (min-width: 721px) { .sheet-app .section-title h1 { font-size: 26px; } .sheet-app .metric strong { font-size: 21px; } }
 @media (max-width: 720px) { .sheet-app { font-size: 15px; } .sheet-app .sheet-tabs button { font-size: 8px; } .bold-toggle { width: 29px; height: 29px; } }
+/* Interface maior por padrão, sem zoom e sem largura fixa */
+.sheet-app { font-size: 17px; }
+.sheet-app .section-title h1 { font-size: 27px; }
+.sheet-app .metric span { font-size: 12px; }
+.sheet-app .metric strong { font-size: 22px; }
+.sheet-app .green-action, .sheet-app .light-action, .sheet-app .chart-action, .sheet-app .register-button { font-size: 13px; }
+@media (max-width: 720px) {
+  .sheet-app { font-size: 16px; }
+  .sheet-app .section-title h1 { font-size: 22px; }
+  .sheet-app .metric span { font-size: 11px; }
+  .sheet-app .metric strong { font-size: 16px; }
+  .sheet-app .green-action, .sheet-app .light-action, .sheet-app .chart-action, .sheet-app .register-button { font-size: 12px; }
+}
