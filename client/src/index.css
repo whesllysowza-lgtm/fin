@@ -1429,3 +1429,18 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .sheet-app { zoom: var(--ui-zoom, 1); width: calc(100% / var(--ui-zoom, 1)); max-width: calc(100% / var(--ui-zoom, 1)); margin-left: auto; margin-right: auto; }
 /* Negrito global: aplica aos textos do sistema inteiro, incluindo cabeçalho e abas */
 .strong-mode, .strong-mode button, .strong-mode input, .strong-mode select, .strong-mode textarea, .strong-mode label, .strong-mode p, .strong-mode span, .strong-mode strong, .strong-mode small, .strong-mode h1, .strong-mode h2, .strong-mode h3 { font-weight: 700; }
+/* Correção do zoom: o cabeçalho permanece estável e somente o conteúdo é ampliado */
+.sheet-app {
+  zoom: 1 !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+.sheet-app .sheet-main {
+  zoom: var(--ui-zoom, 1);
+  width: calc(100% / var(--ui-zoom, 1));
+  max-width: calc(100% / var(--ui-zoom, 1));
+  box-sizing: border-box;
+}
+@media (max-width: 720px) {
+  .sheet-app .sheet-main { width: calc(100% / var(--ui-zoom, 1)); max-width: calc(100% / var(--ui-zoom, 1)); }
+}
