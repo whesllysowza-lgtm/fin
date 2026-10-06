@@ -1439,3 +1439,18 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
   .sheet-app .metric strong { font-size: 16px; }
   .sheet-app .green-action, .sheet-app .light-action, .sheet-app .chart-action, .sheet-app .register-button { font-size: 12px; }
 }
+/* Paleta visual em degradê, inspirada no seletor da referência */
+.palette-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.palette-picker { min-width: 0; padding: 11px; border: 1px solid #d9e8d5; border-radius: 13px; background: #fff; }
+.palette-picker-label { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 11px; font-weight: 800; }
+.palette-picker-label code { color: #71836d; font-size: 9px; }
+.palette-gradient-square { position: relative; height: 116px; overflow: hidden; border-radius: 7px; background-image: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent); }
+.palette-gradient-square input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: crosshair; }
+.palette-hue-slider { width: 100%; height: 13px; margin: 9px 0 8px; border-radius: 3px; appearance: none; background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+.palette-hue-slider::-webkit-slider-thumb { width: 5px; height: 18px; appearance: none; border: 2px solid #fff; border-radius: 2px; background: #333; box-shadow: 0 0 0 1px #333; }
+.palette-hue-slider::-moz-range-thumb { width: 5px; height: 18px; border: 2px solid #fff; border-radius: 2px; background: #333; box-shadow: 0 0 0 1px #333; }
+.palette-color-input { display: flex; align-items: center; justify-content: space-between; color: #71836d; font-size: 10px; }
+.palette-color-input input { width: 27px; height: 22px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+@media (max-width: 640px) { .palette-grid { grid-template-columns: 1fr; } .palette-gradient-square { height: 128px; } }
+.palette-gradient-square { touch-action: none; cursor: crosshair; }
+.palette-picker-marker { position: absolute; width: 12px; height: 12px; transform: translate(-50%, -50%); border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #333, 0 1px 4px rgba(0,0,0,.45); pointer-events: none; }
