@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { BarChart3, Bot, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays, LogOut, Eye, EyeOff } from "lucide-react";
+import { BarChart3, Bot, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LineChart, CalendarDays, LogOut, Eye, EyeOff, ZoomIn, ZoomOut, RotateCcw, Bold } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import FinanceAssistant from "@/components/FinanceAssistant";
 
@@ -122,6 +122,11 @@ function nextMonth(label: string) {
 
 export default function Home() {
   const [tab, setTab] = useState("PAINEL");
+  const [zoomLevel, setZoomLevel] = useState(() => {
+    const stored = Number(localStorage.getItem("financas-ui-zoom") || "1");
+    return Number.isFinite(stored) && stored >= 0.9 && stored <= 1.15 ? stored : 1;
+  });
+  const [boldText, setBoldText] = useState(() => localStorage.getItem("financas-ui-bold") === "true");
   const [people, setPeople] = useState<string[]>(defaultPeople);
   const [origins, setOrigins] = useState<string[]>(defaultOrigins);
   const [expenses, setExpenses] = useState<string[]>(defaultExpenses);
@@ -432,6 +437,17 @@ export default function Home() {
     if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || "");
   };
   const togglePaidExpense = (expense: string) => setPaidExpenses((current) => ({ ...current, [expense]: !current[expense] }));
+  const changeZoom = (delta: number) => setZoomLevel((current) => {
+    const next = Math.min(1.15, Math.max(0.9, Math.round((current + delta) * 20) / 20));
+    localStorage.setItem("financas-ui-zoom", String(next));
+    return next;
+  });
+  const resetZoom = () => { localStorage.setItem("financas-ui-zoom", "1"); setZoomLevel(1); };
+  const toggleBoldText = () => setBoldText((current) => {
+    const next = !current;
+    localStorage.setItem("financas-ui-bold", String(next));
+    return next;
+  });
 
   const requestNewMonth = () => setShowNewMonthConfirm(true);
 
@@ -579,8 +595,8 @@ export default function Home() {
   if (!cloudLoaded) return <div className="auth-loading">Carregando seus dados salvos...</div>;
   if (cloudLoadError) return <div className="auth-loading">{cloudLoadError}</div>;
   return (
-    <div className="sheet-app" style={{ "--theme-primary": palette.primary, "--theme-background": palette.background, "--theme-card": palette.card, "--theme-text": palette.text, "--theme-gradient-accent": gradientAccent } as React.CSSProperties}>
-      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {accountLabel}</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="top-icon assistant-top-button" type="button" onClick={() => setShowAssistant(true)} aria-label="Abrir assistente financeiro" title="Manus Finanças"><Bot size={18} /></button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void handleSignOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
+    <div className={`sheet-app ${boldText ? "strong-mode" : ""}`} style={{ "--theme-primary": palette.primary, "--theme-background": palette.background, "--theme-card": palette.card, "--theme-text": palette.text, "--theme-gradient-accent": gradientAccent, zoom: zoomLevel } as React.CSSProperties}>
+      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={(event) => { event.preventDefault(); openAccount(); }}><span className="sheet-logo">+</span><span><strong>Conta de {accountLabel}</strong><small>{currentMonth}</small></span></button><div className="top-actions"><div className="zoom-control" aria-label="Ajustar tamanho da tela"><button type="button" onClick={() => changeZoom(-0.05)} disabled={zoomLevel <= 0.9} aria-label="Diminuir zoom" title="Diminuir zoom"><ZoomOut size={14} /></button><button type="button" className="zoom-level" onClick={resetZoom} aria-label="Restaurar zoom" title="Restaurar zoom">{Math.round(zoomLevel * 100)}%</button><button type="button" onClick={() => changeZoom(0.05)} disabled={zoomLevel >= 1.15} aria-label="Aumentar zoom" title="Aumentar zoom"><ZoomIn size={14} /></button></div><button type="button" className={`bold-toggle ${boldText ? "active" : ""}`} onClick={toggleBoldText} aria-label="Alternar texto em negrito" title="Alternar negrito"><Bold size={15} /></button><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="top-icon assistant-top-button" type="button" onClick={() => setShowAssistant(true)} aria-label="Abrir assistente financeiro" title="Manus Finanças"><Bot size={18} /></button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void handleSignOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3], ["LISTA DESPESAS", ClipboardList]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
         {message && <div className="sheet-message" role="status">{message}</div>}
