@@ -1380,3 +1380,22 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .paid-expense-row input { width: 16px; height: 16px; accent-color: var(--theme-primary, #2e6f25); }
 .paid-expense-row.is-paid span { color: #9aa39a; text-decoration: line-through; text-decoration-thickness: 1.5px; }
 @media (max-width: 640px) { .paid-expenses-list { margin-top: 14px; padding: 13px; } .paid-expenses-heading { display: block; } .paid-expenses-heading p { margin-top: 4px; } }
+/* Menu principal em uma única linha, incluindo a aba LISTA DESPESAS */
+.sheet-tabs {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.sheet-tabs::-webkit-scrollbar { display: none; }
+.sheet-tabs button {
+  flex: 0 0 auto !important;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .sheet-tabs { gap: 3px; padding: 4px; }
+  .sheet-tabs button { min-height: 34px; padding: 0 7px; font-size: 8px; letter-spacing: -.03em; }
+  .sheet-tabs button svg { width: 13px; height: 13px; }
+}
