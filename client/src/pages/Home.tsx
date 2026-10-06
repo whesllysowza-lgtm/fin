@@ -605,8 +605,8 @@ export default function Home() {
   };
 
   const gradientAccent = isSalaryPerson
-    ? leftover < 0 ? "#f3d7d2" : leftover > 0 ? "#d9f0d3" : "#edf2e8"
-    : selectedExpenses > 0 ? "#e4efd8" : "#edf2e8";
+    ? leftover < 0 ? "#f3d7d2" : leftover > 0 ? palette.card : palette.background
+    : selectedExpenses > 0 ? palette.card : palette.background;
 
   if (!cloudLoaded) return <div className="auth-loading">Carregando seus dados salvos...</div>;
   if (cloudLoadError) return <div className="auth-loading">{cloudLoadError}</div>;
