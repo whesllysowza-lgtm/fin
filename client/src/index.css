@@ -1544,3 +1544,44 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
   background: color-mix(in srgb, var(--theme-card) 84%, var(--theme-background)) !important;
   border-color: color-mix(in srgb, var(--theme-primary) 35%, transparent) !important;
 }
+/* Auditoria final: nenhum controle da área logada mantém o verde antigo */
+.sheet-app .install-app-button,
+.sheet-app .export-button,
+.sheet-app .category-add button,
+.sheet-app .quick-choices button.selected,
+.sheet-app .row-actions button:first-child {
+  color: var(--theme-background) !important;
+  background: var(--theme-primary) !important;
+  border-color: var(--theme-primary) !important;
+}
+.sheet-app .install-app-button:hover,
+.sheet-app .export-button:hover,
+.sheet-app .category-add button:hover,
+.sheet-app .quick-choices button.selected:hover,
+.sheet-app .row-actions button:first-child:hover {
+  background: color-mix(in srgb, var(--theme-primary) 82%, var(--theme-text)) !important;
+}
+.sheet-app .bold-toggle:not(.active),
+.sheet-app .settings-close,
+.sheet-app .row-actions button:first-child,
+.sheet-app .quick-choices button {
+  color: var(--theme-primary) !important;
+  border-color: color-mix(in srgb, var(--theme-primary) 25%, transparent) !important;
+  background: color-mix(in srgb, var(--theme-card) 82%, var(--theme-background)) !important;
+}
+.sheet-app .settings-modal h2,
+.sheet-app .settings-row,
+.sheet-app .palette-picker-label span,
+.sheet-app .palette-color-input,
+.sheet-app .export-panel span,
+.sheet-app .export-panel strong {
+  color: var(--theme-text) !important;
+}
+.sheet-app .history-month-picker .field-label,
+.sheet-app .export-month-select,
+.sheet-app .category-edit-row button:first-child { color: var(--theme-primary) !important; }
+.sheet-app .category-edit-row input,
+.sheet-app .category-add input,
+.sheet-app .history-toolbar input,
+.sheet-app .export-month-select { border-color: color-mix(in srgb, var(--theme-primary) 25%, transparent) !important; }
+.sheet-app .paid-expenses-list { border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-background)) !important; }
