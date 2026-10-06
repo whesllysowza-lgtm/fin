@@ -1459,3 +1459,14 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 @media (max-width: 720px) {
   .sheet-app .sheet-tabs button { font-size: 10px !important; letter-spacing: -.05em; padding-inline: 1px; }
 }
+/* Configurações sem corte: rolagem interna e paleta compacta em uma coluna */
+@media (max-width: 800px) {
+  .settings-backdrop { align-items: flex-start !important; padding: 10px !important; overflow-y: auto !important; overflow-x: hidden !important; }
+  .settings-modal { width: 100% !important; max-width: 430px !important; height: auto !important; max-height: calc(100dvh - 20px) !important; margin: 0 auto !important; overflow-x: hidden !important; overflow-y: auto !important; zoom: 1 !important; }
+  .settings-modal .palette-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+  .settings-modal .palette-picker { padding: 8px; }
+  .settings-modal .palette-gradient-square { height: 86px; }
+  .settings-modal .palette-hue-slider { margin: 7px 0 6px; }
+  .settings-modal .palette-preview { height: 34px; margin: 6px 0 8px; }
+  .settings-modal .settings-done { position: sticky !important; bottom: 0; z-index: 4; margin-bottom: 0; box-shadow: 0 -8px 14px rgba(255,255,255,.95); }
+}
