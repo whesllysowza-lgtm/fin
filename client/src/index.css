@@ -1454,3 +1454,8 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 @media (max-width: 640px) { .palette-grid { grid-template-columns: 1fr; } .palette-gradient-square { height: 128px; } }
 .palette-gradient-square { touch-action: none; cursor: crosshair; }
 .palette-picker-marker { position: absolute; width: 12px; height: 12px; transform: translate(-50%, -50%); border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #333, 0 1px 4px rgba(0,0,0,.45); pointer-events: none; }
+/* Abas mais destacadas, sem quebra de linha */
+.sheet-app .sheet-tabs button { font-size: 13px !important; font-weight: 800; white-space: nowrap; line-height: 1; }
+@media (max-width: 720px) {
+  .sheet-app .sheet-tabs button { font-size: 10px !important; letter-spacing: -.05em; padding-inline: 1px; }
+}
