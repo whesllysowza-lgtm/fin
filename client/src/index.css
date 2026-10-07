@@ -1598,3 +1598,9 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
   background: color-mix(in srgb, var(--theme-card) 72%, var(--theme-background)) !important;
   border-color: color-mix(in srgb, var(--theme-primary) 34%, var(--theme-background)) !important;
 }
+/* Ícones V dos seletores seguem a cor principal, inclusive no modo vermelho */
+.sheet-app .welcome-copy > svg,
+.sheet-app .select-wrap > svg {
+  color: var(--theme-primary) !important;
+  stroke: var(--theme-primary) !important;
+}
