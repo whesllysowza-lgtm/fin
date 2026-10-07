@@ -233,6 +233,8 @@ export default function Home() {
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
         skipNextPersistRef.current = true;
         applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime, setBoldText });
+        const localBold = localStorage.getItem(`finance-bold:${user.id}`);
+        if (localBold !== null) setBoldText(localBold === "true");
       }
       setCloudLoaded(true);
     };
@@ -468,6 +470,8 @@ export default function Home() {
   const togglePaidExpense = (expense: string) => setPaidExpenses((current) => ({ ...current, [expense]: !current[expense] }));
   const toggleBoldText = () => setBoldText((current) => {
     const next = !current;
+    const userId = userIdRef.current;
+    if (userId) localStorage.setItem(`finance-bold:${userId}`, String(next));
     return next;
   });
 
