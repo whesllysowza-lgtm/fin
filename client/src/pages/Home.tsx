@@ -21,7 +21,7 @@ function smartPalette(primary: string): ThemePalette {
     text: hslToHex(h, Math.min(0.42, intensity * 0.7), 0.18),
   };
 }
-type AppSnapshot = { people: string[]; origins: string[]; expenses: string[]; paidExpenses: Record<string, boolean>; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string; selectedPerson: string; reminderEnabled: boolean; reminderTime: string };
+type AppSnapshot = { boldText: boolean; people: string[]; origins: string[]; expenses: string[]; paidExpenses: Record<string, boolean>; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string; selectedPerson: string; reminderEnabled: boolean; reminderTime: string };
 
 const initialEntries: Entry[] = [
   { id: 1, person: "Vanessa", origin: "CARTÃO", expense: "FATURA", value: 10.9 },
@@ -127,6 +127,7 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   setSelectedPerson: (value: string) => void;
   setReminderEnabled: (value: boolean) => void;
   setReminderTime: (value: string) => void;
+  setBoldText: (value: boolean) => void;
 }) {
   if (!payload) return;
   if (Array.isArray(payload.people)) setters.setPeople(payload.people as string[]);
@@ -144,6 +145,7 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   if (typeof payload.selectedPerson === "string") setters.setSelectedPerson(payload.selectedPerson);
   if (typeof payload.reminderEnabled === "boolean") setters.setReminderEnabled(payload.reminderEnabled);
   if (typeof payload.reminderTime === "string") setters.setReminderTime(payload.reminderTime);
+  if (typeof payload.boldText === "boolean") setters.setBoldText(payload.boldText);
 }
 
 function calendarMonth() { const now = new Date(); return `${monthNames[now.getMonth()]} ${now.getFullYear()}`; }
@@ -156,7 +158,7 @@ function nextMonth(label: string) {
 
 export default function Home() {
   const [tab, setTab] = useState("PAINEL");
-  const [boldText, setBoldText] = useState(() => localStorage.getItem("financas-ui-bold") === "true");
+  const [boldText, setBoldText] = useState(false);
   const [people, setPeople] = useState<string[]>(defaultPeople);
   const [origins, setOrigins] = useState<string[]>(defaultOrigins);
   const [expenses, setExpenses] = useState<string[]>(defaultExpenses);
@@ -230,7 +232,7 @@ export default function Home() {
         return;
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
         skipNextPersistRef.current = true;
-        applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime });
+        applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime, setBoldText });
       }
       setCloudLoaded(true);
     };
@@ -244,7 +246,7 @@ export default function Home() {
       skipNextPersistRef.current = false;
       return;
     }
-    const payload: AppSnapshot = { people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime };
+    const payload: AppSnapshot = { boldText, people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime };
     if (skipHistoryRef.current) {
       skipHistoryRef.current = false;
       undoSnapshotRef.current = null;
@@ -291,7 +293,7 @@ export default function Home() {
     setSelectedPerson(name);
     const userId = userIdRef.current;
     if (!userId) return;
-    const payload: AppSnapshot = { people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson: name, reminderEnabled, reminderTime };
+    const payload: AppSnapshot = { boldText, people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson: name, reminderEnabled, reminderTime };
     const localDraftKey = `finance-state-draft:${userId}`;
     localStorage.setItem(localDraftKey, JSON.stringify(payload));
     void supabase.from("finance_state").upsert({ id: userId, user_id: userId, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).then(({ error }) => {
@@ -466,7 +468,6 @@ export default function Home() {
   const togglePaidExpense = (expense: string) => setPaidExpenses((current) => ({ ...current, [expense]: !current[expense] }));
   const toggleBoldText = () => setBoldText((current) => {
     const next = !current;
-    localStorage.setItem("financas-ui-bold", String(next));
     return next;
   });
 
@@ -496,6 +497,7 @@ export default function Home() {
     setReminderEnabled(false);
     setReminderTime("20:00");
     setPalette(defaultPalette);
+    setBoldText(false);
     setCanUndo(false);
     lastSnapshotRef.current = null;
     undoSnapshotRef.current = null;
@@ -504,7 +506,7 @@ export default function Home() {
     const userId = userIdRef.current;
     if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current);
     if (userId) {
-      const payload: AppSnapshot = { people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime };
+      const payload: AppSnapshot = { boldText, people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime };
       const localDraftKey = `finance-state-draft:${userId}`;
       localStorage.setItem(localDraftKey, JSON.stringify(payload));
       const { data: { user } } = await supabase.auth.getUser();
