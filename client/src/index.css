@@ -1639,3 +1639,6 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .icon-picker-options button.selected { border-color: var(--theme-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-primary) 18%, transparent); color: var(--theme-primary); }
 .icon-picker-options img { width: 28px; height: 28px; border-radius: 8px; }
 .icon-picker-modal > small { display: block; margin-top: 8px; color: var(--theme-text); opacity: .72; font-size: 8px; text-align: center; }
+/* O carregamento não usa a paleta verde padrão; a paleta da conta entra após o Supabase carregar */
+html, body { background: #f8fafc; }
+.auth-loading { color: #475569 !important; background: #f8fafc !important; }
