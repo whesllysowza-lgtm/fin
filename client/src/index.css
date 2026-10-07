@@ -1585,3 +1585,16 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .sheet-app .history-toolbar input,
 .sheet-app .export-month-select { border-color: color-mix(in srgb, var(--theme-primary) 25%, transparent) !important; }
 .sheet-app .paid-expenses-list { border-color: color-mix(in srgb, var(--theme-primary) 20%, var(--theme-background)) !important; }
+/* Registro e mensagens de salvamento seguem a paleta, sem sombra verde fixa */
+.sheet-app .register-button {
+  background: linear-gradient(135deg, var(--theme-primary) 0%, color-mix(in srgb, var(--theme-primary) 78%, var(--theme-text)) 100%) !important;
+  border-color: var(--theme-primary) !important;
+  box-shadow: 0 7px 0 color-mix(in srgb, var(--theme-primary) 42%, var(--theme-card)), 0 13px 24px color-mix(in srgb, var(--theme-primary) 22%, transparent) !important;
+}
+.sheet-app .register-button:hover,
+.sheet-app .register-button:focus-visible { box-shadow: 0 5px 0 color-mix(in srgb, var(--theme-primary) 42%, var(--theme-card)), 0 10px 20px color-mix(in srgb, var(--theme-primary) 24%, transparent) !important; }
+.sheet-app .sheet-message {
+  color: var(--theme-primary) !important;
+  background: color-mix(in srgb, var(--theme-card) 72%, var(--theme-background)) !important;
+  border-color: color-mix(in srgb, var(--theme-primary) 34%, var(--theme-background)) !important;
+}
