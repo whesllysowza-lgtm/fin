@@ -4,7 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#6958d9" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      (function () {
+        var icon = "finance-wallet";
+        var valid = { "finance-wallet": true, "finance-chart": true, "finance-coin": true, "finance-piggy": true };
+        try {
+          for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i) || "";
+            if (!key.includes("auth-token")) continue;
+            var auth = JSON.parse(localStorage.getItem(key) || "null");
+            var userId = auth && auth.user && auth.user.id;
+            if (!userId && auth && auth.currentSession && auth.currentSession.user) userId = auth.currentSession.user.id;
+            if (userId) {
+              var saved = localStorage.getItem("finance-app-icon:" + userId);
+              if (valid[saved]) icon = saved;
+              break;
+            }
+          }
+        } catch (_) {}
+        document.write('<link rel="manifest" href="/manifests/' + icon + '.webmanifest" />');
+      }());
+    </script>
     <link rel="icon" href="/icons/finance-icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/finance-icon.svg" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

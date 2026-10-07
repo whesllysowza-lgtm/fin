@@ -247,6 +247,8 @@ export default function Home() {
         applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime, setBoldText, setAppIcon });
         const localBold = localStorage.getItem(`finance-bold:${user.id}`);
         if (localBold !== null) setBoldText(localBold === "true");
+        const savedIcon = cloudPayload.appIcon;
+        if (typeof savedIcon === "string" && appIconOptions.some((option) => option.id === savedIcon)) localStorage.setItem(`finance-app-icon:${user.id}`, savedIcon);
       }
       setCloudLoaded(true);
     };
@@ -486,6 +488,11 @@ export default function Home() {
     if (userId) localStorage.setItem(`finance-bold:${userId}`, String(next));
     return next;
   });
+  const chooseAppIcon = (next: AppIcon) => {
+    setAppIcon(next);
+    const userId = userIdRef.current;
+    if (userId) localStorage.setItem(`finance-app-icon:${userId}`, next);
+  };
 
   const requestNewMonth = () => setShowNewMonthConfirm(true);
 
@@ -636,7 +643,7 @@ export default function Home() {
   return (
     <div className={`sheet-app ${boldText ? "strong-mode" : ""}`} style={{ "--theme-primary": activePalette.primary, "--theme-background": activePalette.background, "--theme-card": activePalette.card, "--theme-text": activePalette.text, "--theme-gradient-accent": gradientAccent } as React.CSSProperties}>
       <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={() => setShowIconPicker(true)} aria-label="Escolher ícone do aplicativo" title="Escolher ícone"><span className="sheet-logo"><img src={`/icons/${appIcon}.svg`} alt="" /></span><span><strong>Conta de {accountLabel}</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button type="button" className={`bold-toggle ${boldText ? "active" : ""}`} onClick={toggleBoldText} aria-label="Alternar texto em negrito" title="Alternar negrito"><Bold size={15} /></button><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void handleSignOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
-      {showIconPicker && <div className="icon-picker-backdrop" role="presentation" onClick={() => setShowIconPicker(false)}><div className="icon-picker-modal" role="dialog" aria-modal="true" aria-labelledby="icon-picker-title" onClick={(event) => event.stopPropagation()}><div className="icon-picker-heading"><strong id="icon-picker-title">Escolher ícone</strong><button type="button" onClick={() => setShowIconPicker(false)} aria-label="Fechar escolha de ícone"><X size={16} /></button></div><div className="icon-picker-options">{appIconOptions.map((option) => <button type="button" className={appIcon === option.id ? "selected" : ""} key={option.id} onClick={() => setAppIcon(option.id)}><img src={`/icons/${option.id}.svg`} alt="" /><span>{option.label}</span></button>)}</div><small>Salvo automaticamente nesta conta.</small></div></div>}
+      {showIconPicker && <div className="icon-picker-backdrop" role="presentation" onClick={() => setShowIconPicker(false)}><div className="icon-picker-modal" role="dialog" aria-modal="true" aria-labelledby="icon-picker-title" onClick={(event) => event.stopPropagation()}><div className="icon-picker-heading"><strong id="icon-picker-title">Escolher ícone</strong><button type="button" onClick={() => setShowIconPicker(false)} aria-label="Fechar escolha de ícone"><X size={16} /></button></div><div className="icon-picker-options">{appIconOptions.map((option) => <button type="button" className={appIcon === option.id ? "selected" : ""} key={option.id} onClick={() => chooseAppIcon(option.id)}><img src={`/icons/${option.id}.svg`} alt="" /><span>{option.label}</span></button>)}</div><small>Salvo automaticamente nesta conta.</small></div></div>}
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3], ["LISTA", ClipboardList]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
         {message && <div className="sheet-message" role="status">{message}</div>}
