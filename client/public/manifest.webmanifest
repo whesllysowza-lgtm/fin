@@ -11,9 +11,15 @@
   "background_color": "#f5f8f3",
   "icons": [
     {
-      "src": "/icons/finance-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icons/finance-wallet-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/finance-wallet-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
@@ -23,14 +29,26 @@
       "short_name": "Registrar",
       "description": "Abrir o registro de uma nova despesa",
       "url": "/?tab=REGISTRO",
-      "icons": [{ "src": "/icons/finance-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [
+        {
+          "src": "/icons/finance-wallet-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Abrir histórico",
       "short_name": "Histórico",
       "description": "Consultar os lançamentos financeiros",
       "url": "/?tab=HISTÓRICO",
-      "icons": [{ "src": "/icons/finance-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [
+        {
+          "src": "/icons/finance-wallet-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
