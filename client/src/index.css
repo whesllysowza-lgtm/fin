@@ -1629,3 +1629,13 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .app-icon-options button { flex: 1 1 0 !important; width: 25% !important; min-width: 0 !important; display: grid !important; grid-template-columns: 1fr !important; padding: 2px 1px !important; gap: 1px !important; }
 .app-icon-options img { width: 20px !important; height: 20px !important; margin: 0 auto; }
 .app-icon-options button span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; font-size: 7px; }
+/* Seletor de ícone aberto pelo botão do cabeçalho */
+.icon-picker-backdrop { position: fixed; inset: 0; z-index: 140; display: grid; place-items: start center; padding: 68px 14px 14px; background: rgba(20,30,20,.28); backdrop-filter: blur(3px); }
+.icon-picker-modal { width: min(100%, 330px); padding: 12px; border: 1px solid color-mix(in srgb, var(--theme-primary) 25%, transparent); border-radius: 16px; background: var(--theme-card); box-shadow: 0 18px 45px rgba(20,30,20,.22); }
+.icon-picker-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; color: var(--theme-text); font-size: 13px; }
+.icon-picker-heading button { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 8px; color: var(--theme-primary); background: color-mix(in srgb, var(--theme-primary) 12%, transparent); }
+.icon-picker-options { display: flex; flex-wrap: nowrap; gap: 5px; }
+.icon-picker-options button { display: grid; flex: 1 1 0; justify-items: center; gap: 3px; min-width: 0; padding: 4px 2px; border: 1px solid color-mix(in srgb, var(--theme-primary) 20%, transparent); border-radius: 9px; color: var(--theme-text); background: color-mix(in srgb, var(--theme-background) 70%, transparent); font-size: 8px; font-weight: 800; }
+.icon-picker-options button.selected { border-color: var(--theme-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-primary) 18%, transparent); color: var(--theme-primary); }
+.icon-picker-options img { width: 28px; height: 28px; border-radius: 8px; }
+.icon-picker-modal > small { display: block; margin-top: 8px; color: var(--theme-text); opacity: .72; font-size: 8px; text-align: center; }
