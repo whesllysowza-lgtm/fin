@@ -1604,3 +1604,13 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
   color: var(--theme-primary) !important;
   stroke: var(--theme-primary) !important;
 }
+/* Ícone do app escolhido individualmente por usuário */
+.sheet-app .sheet-logo { overflow: hidden; padding: 0 !important; }
+.sheet-app .sheet-logo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.app-icon-section { margin-top: 18px; padding-top: 15px; border-top: 1px solid color-mix(in srgb, var(--theme-primary) 18%, transparent); }
+.app-icon-section p { margin: 6px 0 10px !important; color: var(--theme-text) !important; font-size: 10px !important; line-height: 1.35 !important; }
+.app-icon-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.app-icon-options button { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 6px 3px; border: 1px solid color-mix(in srgb, var(--theme-primary) 20%, transparent); border-radius: 10px; color: var(--theme-text); background: color-mix(in srgb, var(--theme-card) 75%, var(--theme-background)); font-size: 9px; font-weight: 800; }
+.app-icon-options button.selected { border-color: var(--theme-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-primary) 18%, transparent); color: var(--theme-primary); }
+.app-icon-options img { width: 38px; height: 38px; border-radius: 10px; }
+@media (max-width: 430px) { .app-icon-options { gap: 5px; } .app-icon-options img { width: 32px; height: 32px; } .app-icon-options button { font-size: 8px; } }
