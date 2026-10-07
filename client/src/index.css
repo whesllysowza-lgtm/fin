@@ -1614,3 +1614,10 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .app-icon-options button.selected { border-color: var(--theme-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-primary) 18%, transparent); color: var(--theme-primary); }
 .app-icon-options img { width: 38px; height: 38px; border-radius: 10px; }
 @media (max-width: 430px) { .app-icon-options { gap: 5px; } .app-icon-options img { width: 32px; height: 32px; } .app-icon-options button { font-size: 8px; } }
+/* Opções de ícone compactas: quatro itens em uma única linha */
+.app-icon-section { margin-top: 12px; padding-top: 10px; }
+.app-icon-section p { margin: 4px 0 6px !important; font-size: 9px !important; }
+.app-icon-options { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; grid-template-rows: 1fr; gap: 4px; }
+.app-icon-options button { gap: 2px; min-height: 0; padding: 4px 2px; border-radius: 8px; font-size: 8px; }
+.app-icon-options img { width: 26px; height: 26px; border-radius: 7px; }
+@media (max-width: 430px) { .app-icon-options { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 3px; } .app-icon-options img { width: 24px; height: 24px; } .app-icon-options button { font-size: 7px; } }
