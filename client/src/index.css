@@ -1681,3 +1681,8 @@ html, body { background: #f8fafc; }
   color: var(--theme-primary) !important;
   background: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-background)) !important;
 }
+/* Valores monetários do histórico em destaque */
+.sheet-app .history-row > strong {
+  color: #b42318 !important;
+  font-weight: 900 !important;
+}
