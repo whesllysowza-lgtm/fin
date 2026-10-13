@@ -1699,3 +1699,24 @@ html, body { background: #f8fafc; }
 .sheet-app .select-wrap select option {
   background: var(--theme-background) !important;
 }
+/* Lista de despesas: marcação e nomes seguem a paleta da conta */
+.sheet-app .paid-expenses-list {
+  background: color-mix(in srgb, var(--theme-card) 82%, var(--theme-background)) !important;
+  border-color: color-mix(in srgb, var(--theme-primary) 22%, var(--theme-background)) !important;
+}
+.sheet-app .paid-expenses-heading span,
+.sheet-app .paid-expense-row .paid-expense-action {
+  color: var(--theme-primary) !important;
+}
+.sheet-app .paid-expenses-heading p,
+.sheet-app .paid-expense-row,
+.sheet-app .paid-expense-row .paid-expense-name {
+  color: var(--theme-text) !important;
+}
+.sheet-app .paid-expense-row {
+  border-top-color: color-mix(in srgb, var(--theme-primary) 14%, var(--theme-background)) !important;
+}
+.sheet-app .paid-expense-row.is-paid .paid-expense-action,
+.sheet-app .paid-expense-row.is-paid .paid-expense-name {
+  color: color-mix(in srgb, var(--theme-text) 58%, transparent) !important;
+}
