@@ -1686,3 +1686,16 @@ html, body { background: #f8fafc; }
   color: #b42318 !important;
   font-weight: 900 !important;
 }
+/* Nomes das listas e da coluna Pessoa sem verde fixo */
+.sheet-app .history-row > span:first-child,
+.sheet-app .table-row > span,
+.sheet-app .category-item span,
+.sheet-app .category-edit-row input,
+.sheet-app .select-wrap select,
+.sheet-app .select-wrap select option {
+  color: var(--theme-text) !important;
+}
+.sheet-app .select-wrap select,
+.sheet-app .select-wrap select option {
+  background: var(--theme-background) !important;
+}
