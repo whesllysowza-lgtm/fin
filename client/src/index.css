@@ -1642,3 +1642,32 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 /* O carregamento não usa a paleta verde padrão; a paleta da conta entra após o Supabase carregar */
 html, body { background: #f8fafc; }
 .auth-loading { color: #475569 !important; background: #f8fafc !important; }
+/* Histórico: edição de valores e modais seguem integralmente a paleta da conta */
+.sheet-app .edit-entry-modal,
+.sheet-app .salary-editor-modal,
+.sheet-app .month-modal,
+.sheet-app .settings-modal {
+  background: var(--theme-background) !important;
+  border-color: color-mix(in srgb, var(--theme-primary) 24%, transparent) !important;
+}
+.sheet-app .edit-entry-modal h2,
+.sheet-app .salary-editor-modal h2,
+.sheet-app .month-modal h2,
+.sheet-app .settings-modal h2 {
+  color: var(--theme-primary) !important;
+}
+.sheet-app .edit-entry-modal input,
+.sheet-app .salary-editor-modal input,
+.sheet-app .month-modal input,
+.sheet-app .settings-modal input {
+  color: var(--theme-text) !important;
+  background: color-mix(in srgb, var(--theme-card) 58%, var(--theme-background)) !important;
+  border-color: color-mix(in srgb, var(--theme-primary) 24%, transparent) !important;
+}
+.sheet-app .edit-entry-backdrop,
+.sheet-app .salary-editor-backdrop,
+.sheet-app .month-modal-backdrop,
+.sheet-app .settings-backdrop,
+.sheet-app .chart-backdrop {
+  background: color-mix(in srgb, var(--theme-primary) 14%, rgba(15, 23, 42, .58)) !important;
+}
