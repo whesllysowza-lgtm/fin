@@ -1735,3 +1735,34 @@ html, body { background: #f8fafc; }
 .finance-mascot-crying .mascot-bubble span { color: #b42318; }
 @keyframes pig-mascot-enter { from { opacity: 0; transform: translateX(24px) scale(.84); } to { opacity: 1; transform: translateX(0) scale(1); } }
 @media (prefers-reduced-motion: reduce) { .finance-pig-mascot { animation: none; } }
+/* Porquinho ilustrado andando na parte inferior do site */
+.site-piggy-walker {
+  position: fixed;
+  right: -110px;
+  bottom: calc(66px + env(safe-area-inset-bottom));
+  z-index: 24;
+  width: 92px;
+  height: 92px;
+  pointer-events: none;
+  animation: piggy-walk-across 8s linear forwards;
+  will-change: transform, right;
+}
+.site-piggy-walker img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 5px 5px rgba(15, 23, 42, .18)); }
+.site-piggy-walker.is-crying img { filter: saturate(.82) drop-shadow(0 5px 5px rgba(15, 23, 42, .18)); }
+.piggy-status { position: absolute; right: 1px; top: 3px; display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: var(--theme-card); box-shadow: 0 2px 7px rgba(15,23,42,.18); font-size: 15px; }
+.site-piggy-walker.is-crying .piggy-status { background: #dbeafe; }
+@keyframes piggy-walk-across {
+  0% { right: -110px; transform: translateY(0) scaleX(1); opacity: 0; }
+  8% { opacity: 1; }
+  25% { transform: translateY(-4px) scaleX(1); }
+  50% { transform: translateY(0) scaleX(1); }
+  75% { transform: translateY(-4px) scaleX(1); }
+  92% { opacity: 1; }
+  100% { right: calc(100vw + 110px); transform: translateY(0) scaleX(1); opacity: 0; }
+}
+@media (max-width: 430px) {
+  .site-piggy-walker { width: 78px; height: 78px; bottom: calc(72px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-piggy-walker { animation: none; right: 14px; opacity: 1; }
+}
