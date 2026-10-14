@@ -1812,3 +1812,26 @@ html, body { background: #f8fafc; }
   .site-piggy-walker img,
   .site-piggy-walker::after { animation: none; }
 }
+/* Caminhada no lugar: sem atravessar a tela como um slide */
+.site-piggy-walker {
+  right: 14px;
+  animation: piggy-in-place 2.4s ease-in-out infinite;
+}
+.site-piggy-walker img {
+  animation: piggy-body-step .42s ease-in-out infinite alternate;
+}
+.site-piggy-walker::after {
+  animation: piggy-shadow-step .42s ease-in-out infinite alternate;
+}
+@keyframes piggy-in-place {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-1deg); }
+  25% { transform: translate3d(-6px, -2px, 0) rotate(1deg); }
+  50% { transform: translate3d(1px, 0, 0) rotate(-.5deg); }
+  75% { transform: translate3d(6px, -2px, 0) rotate(1deg); }
+}
+@media (max-width: 430px) {
+  .site-piggy-walker { right: 10px; animation-duration: 2.4s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-piggy-walker { animation: none; right: 14px; }
+}
