@@ -425,7 +425,7 @@ export default function Home() {
   useEffect(() => {
     if (!cloudLoaded) return;
     setShowMascot(true);
-    const mascotTimer = window.setTimeout(() => setShowMascot(false), 6500);
+    const mascotTimer = window.setTimeout(() => setShowMascot(false), 8500);
     return () => window.clearTimeout(mascotTimer);
   }, [cloudLoaded]);
   useEffect(() => {
