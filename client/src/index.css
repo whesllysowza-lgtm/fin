@@ -1766,3 +1766,9 @@ html, body { background: #f8fafc; }
 @media (prefers-reduced-motion: reduce) {
   .site-piggy-walker { animation: none; right: 14px; opacity: 1; }
 }
+/* Ajuste final do percurso para celular: menor e mais confortável */
+.site-piggy-walker { width: 86px; height: 86px; animation-duration: 10s; }
+@media (max-width: 430px) {
+  .site-piggy-walker { width: 70px; height: 70px; animation-duration: 10s; bottom: calc(74px + env(safe-area-inset-bottom)); }
+  .piggy-status { width: 22px; height: 22px; font-size: 13px; }
+}
