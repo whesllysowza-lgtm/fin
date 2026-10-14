@@ -1720,3 +1720,7 @@ html, body { background: #f8fafc; }
 .sheet-app .paid-expense-row.is-paid .paid-expense-name {
   color: color-mix(in srgb, var(--theme-text) 58%, transparent) !important;
 }
+/* Ações principais: o segundo tom também vem da paleta, sem verde fixo */
+.sheet-app .green-action {
+  background: linear-gradient(135deg, var(--theme-primary) 0%, color-mix(in srgb, var(--theme-primary) 72%, var(--theme-card)) 100%) !important;
+}
