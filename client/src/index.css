@@ -1835,3 +1835,14 @@ html, body { background: #f8fafc; }
 @media (prefers-reduced-motion: reduce) {
   .site-piggy-walker { animation: none; right: 14px; }
 }
+/* Comemoração de saldo positivo: confetes leves, sem bloquear a interface */
+.piggy-confetti { position: absolute; inset: -72px -46px 20px; z-index: -1; pointer-events: none; overflow: visible; }
+.piggy-confetti i { position: absolute; top: 42px; left: var(--confetti-left); width: 5px; height: 10px; border-radius: 2px; background: var(--confetti-color); opacity: 0; transform: rotate(var(--confetti-rotation)); animation: piggy-confetti-fall var(--confetti-duration) cubic-bezier(.2,.7,.3,1) var(--confetti-delay) both; }
+@keyframes piggy-confetti-fall {
+  0% { opacity: 0; transform: translate3d(0, -12px, 0) rotate(0deg); }
+  12% { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(calc((var(--confetti-left) - 50%) * .18), 90px, 0) rotate(260deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .piggy-confetti { display: none; }
+}
