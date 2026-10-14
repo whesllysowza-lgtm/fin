@@ -1772,3 +1772,43 @@ html, body { background: #f8fafc; }
   .site-piggy-walker { width: 70px; height: 70px; animation-duration: 10s; bottom: calc(74px + env(safe-area-inset-bottom)); }
   .piggy-status { width: 22px; height: 22px; font-size: 13px; }
 }
+/* Movimento natural: passos, balanço do corpo e sombra acompanhando o porquinho */
+.site-piggy-walker {
+  animation: piggy-walk-across 11s linear forwards;
+}
+.site-piggy-walker::after {
+  content: "";
+  position: absolute;
+  right: 9%;
+  bottom: -2px;
+  left: 9%;
+  z-index: -1;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, .18);
+  filter: blur(4px);
+  animation: piggy-shadow-step .48s ease-in-out infinite alternate;
+}
+.site-piggy-walker img {
+  transform-origin: 50% 92%;
+  animation: piggy-body-step .48s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes piggy-body-step {
+  0% { transform: translateY(1px) rotate(-1.4deg) scaleY(.985); }
+  35% { transform: translateY(-2px) rotate(.8deg) scaleY(1); }
+  70% { transform: translateY(-4px) rotate(1.4deg) scaleY(1.012); }
+  100% { transform: translateY(0) rotate(-.6deg) scaleY(.99); }
+}
+@keyframes piggy-shadow-step {
+  0% { transform: scaleX(.78); opacity: .12; }
+  50% { transform: scaleX(1); opacity: .2; }
+  100% { transform: scaleX(.7); opacity: .1; }
+}
+@media (max-width: 430px) {
+  .site-piggy-walker { animation-duration: 11s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-piggy-walker img,
+  .site-piggy-walker::after { animation: none; }
+}
