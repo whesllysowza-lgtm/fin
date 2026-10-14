@@ -1724,3 +1724,14 @@ html, body { background: #f8fafc; }
 .sheet-app .green-action {
   background: linear-gradient(135deg, var(--theme-primary) 0%, color-mix(in srgb, var(--theme-primary) 72%, var(--theme-card)) 100%) !important;
 }
+/* Mascote porquinho: aparece ao abrir o Painel e some suavemente depois */
+.finance-pig-mascot { animation: pig-mascot-enter .55s ease-out, mascot-float 3.2s ease-in-out .55s infinite; }
+.finance-pig-mascot .mascot-body { width: 66px; min-height: 54px; background: linear-gradient(145deg, var(--theme-card), var(--theme-background)); }
+.finance-pig-mascot .mascot-status-icon { position: absolute; right: -7px; bottom: -7px; z-index: 2; padding: 2px; border-radius: 50%; color: #fff; background: var(--theme-primary); }
+.finance-pig-mascot .mascot-tears { color: #2563eb; background: #dbeafe; }
+.finance-mascot-positive .mascot-face { color: var(--theme-primary); }
+.finance-mascot-crying .mascot-face { color: #64748b; }
+.finance-mascot-crying .mascot-body { border-color: #94a3b8; }
+.finance-mascot-crying .mascot-bubble span { color: #b42318; }
+@keyframes pig-mascot-enter { from { opacity: 0; transform: translateX(24px) scale(.84); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .finance-pig-mascot { animation: none; } }
