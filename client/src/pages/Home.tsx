@@ -442,20 +442,9 @@ export default function Home() {
     const mascotTimer = window.setTimeout(() => setShowMascot(false), 8500);
     return () => window.clearTimeout(mascotTimer);
   }, [cloudLoaded]);
-  useEffect(() => {
-    if (!cloudLoaded) return;
-    const realMonth = calendarMonth();
-    if (currentMonth === realMonth) return;
-    if (entries.length > 0) {
-      setArchivedMonths((current) => current.includes(currentMonth) ? current : [currentMonth, ...current]);
-      setArchivedData((current) => current[currentMonth] ? current : ({ ...current, [currentMonth]: entries }));
-    }
-    setSummaries((current) => ({ ...current, [realMonth]: current[realMonth] || emptyMonthlySummary() }));
-    setEntries([]);
-    setCurrentMonth(realMonth);
-    setTab("PAINEL");
-    notify(`Mês atual aberto: ${realMonth}. ${currentMonth} foi arquivado.`);
-  }, [cloudLoaded]);
+  // A abertura do app não troca o mês automaticamente. A troca automática
+  // podia sobrescrever um mês arquivado ou uma recuperação local; o usuário
+  // pode abrir o mês atual pelo botão "MÊS ATUAL".
 
   const updateCategory = (kind: "people" | "origins" | "expenses", index: number, nextName: string) => {
     const name = nextName.trim();
