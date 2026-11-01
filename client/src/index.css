@@ -1846,3 +1846,21 @@ html, body { background: #f8fafc; }
 @media (prefers-reduced-motion: reduce) {
   .piggy-confetti { display: none; }
 }
+
+/* Backup local JSON: discreto e compatível com o modal de configurações */
+.sheet-app .backup-export-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 10px;
+}
+.sheet-app .backup-note {
+  display: block;
+  margin: 8px 2px 0;
+  color: var(--theme-text, #2f3c2d);
+  opacity: .72;
+  font-size: .78rem;
+  line-height: 1.35;
+}
