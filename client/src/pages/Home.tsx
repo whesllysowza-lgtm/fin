@@ -154,6 +154,14 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
 }
 
 function calendarMonth() { const now = new Date(); return `${monthNames[now.getMonth()]} ${now.getFullYear()}`; }
+function hasSavedEntriesForMonth(payload: Record<string, unknown> | null, month: string) {
+  if (!payload) return false;
+  if (payload.currentMonth === month && Array.isArray(payload.entries) && payload.entries.length > 0) return true;
+  const archivedData = payload.archivedData;
+  if (!archivedData || typeof archivedData !== "object" || Array.isArray(archivedData)) return false;
+  const monthEntries = (archivedData as Record<string, unknown>)[month];
+  return Array.isArray(monthEntries) && monthEntries.length > 0;
+}
 function nextMonth(label: string) {
   const [month, yearText] = label.split(" ");
   const index = Math.max(0, monthNames.indexOf(month));
@@ -236,9 +244,13 @@ export default function Home() {
       let localDraft: Record<string, unknown> | null = null;
       try { localDraft = JSON.parse(localStorage.getItem(localDraftKey) || "null") as Record<string, unknown> | null; } catch { localDraft = null; }
       const cloudState = data?.payload as Record<string, unknown> | null;
-      // O estado online é a fonte principal para contas já existentes.
-      // Um rascunho local vazio não pode substituir os dados do Supabase.
-      const cloudPayload = (cloudState || localDraft) as Record<string, unknown> | null;
+      // O estado online continua sendo a fonte principal. Exceção segura:
+      // se o rascunho individual ainda tiver lançamentos de Outubro e o
+      // estado online estiver sem eles, recuperamos o rascunho local em vez
+      // de aceitar silenciosamente um mês vazio.
+      const recoverOctoberFromDraft = hasSavedEntriesForMonth(localDraft, "Outubro 2026") && !hasSavedEntriesForMonth(cloudState, "Outubro 2026");
+      const cloudPayload = (recoverOctoberFromDraft ? localDraft : (cloudState || localDraft)) as Record<string, unknown> | null;
+      if (recoverOctoberFromDraft) notify("Encontramos uma cópia local de Outubro e vamos recuperá-la.");
       if (error) {
         console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
         setCloudLoadError("Não foi possível carregar seus dados salvos. Tente atualizar a página.");
