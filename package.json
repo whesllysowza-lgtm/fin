@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "import:october": "node scripts/import-october-backup.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
