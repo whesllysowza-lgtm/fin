@@ -257,7 +257,9 @@ export default function Home() {
         setCloudLoaded(true);
         return;
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
-        skipNextPersistRef.current = true;
+        // Uma recuperação do rascunho precisa voltar ao Supabase; os demais
+        // carregamentos continuam sem disparar uma gravação redundante.
+        skipNextPersistRef.current = !recoverOctoberFromDraft;
         applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime, setBoldText, setAppIcon });
         const localBold = localStorage.getItem(`finance-bold:${user.id}`);
         if (localBold !== null) setBoldText(localBold === "true");
