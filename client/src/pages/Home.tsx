@@ -577,9 +577,12 @@ export default function Home() {
   };
   const switchMonth = (targetMonth: string) => {
     if (!targetMonth || targetMonth === currentMonth) return;
+    // Capture the target before updating archivedData so the switch never
+    // reads a stale React state value during the same event.
+    const targetEntries = archivedData[targetMonth] || [];
     setArchivedMonths((current) => current.includes(currentMonth) ? current : [currentMonth, ...current]);
     setArchivedData((current) => ({ ...current, [currentMonth]: entries }));
-    setEntries(archivedData[targetMonth] || []);
+    setEntries(targetEntries);
     setCurrentMonth(targetMonth);
     setSearch("");
     setForm({ person: "", origin: "", expense: "", value: "" });
@@ -734,11 +737,18 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
     }
   };
   const rows = (items: Entry[], rowMonth: string) => items.map((entry) => <div className="table-row history-row" key={`${rowMonth}-${entry.id}`}><span>{entry.person}</span><span>{entry.origin}</span><span>{entry.expense}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions"><button type="button" onClick={() => startEdit(rowMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" onClick={() => onDelete(rowMonth, entry.id)} aria-label="Apagar lançamento"><Trash2 size={14} /></button></div></div>);
-  const savedMonths = archivedMonths.filter((savedMonth) => savedMonth !== month && Object.prototype.hasOwnProperty.call(archivedData, savedMonth));
-  const monthOptions = [month, ...savedMonths];
+  // Older states can have the month recorded in only one of these
+  // structures. Show the union so a saved month is never hidden by a
+  // partial archive, while preserving the current month first.
+  const monthOptions = Array.from(new Set([
+    month,
+    ...archivedMonths,
+    ...Object.keys(archivedData),
+    ...Object.keys(summaries),
+  ].filter(Boolean)));
   useEffect(() => {
     if (!monthOptions.includes(exportMonth)) setExportMonth(month);
-  }, [month, exportMonth, savedMonths.join("|")]);
+  }, [month, exportMonth, monthOptions.join("|")]);
   const exportEntries = exportMonth === month ? allEntries : (archivedData[exportMonth] || []);
   const exportSpreadsheet = () => {
     const csvRows = [["MÊS", exportMonth], [], ["PESSOA", "ORIGEM", "DESPESA", "VALOR"], ...exportEntries.map((entry) => [entry.person, entry.origin, entry.expense, entry.value.toFixed(2).replace(".", ",")]), [], ["TOTAL", "", "", (summaries[exportMonth]?.expenses ?? exportEntries.reduce((sum, entry) => sum + entry.value, 0)).toFixed(2).replace(".", ",")]];
