@@ -67,7 +67,10 @@ async function saveMonthlySnapshots(userId: string, snapshot: AppSnapshot) {
   }));
   if (!rows.length) return null;
   const { error } = await supabase.from("finance_month_snapshots").upsert(rows, { onConflict: "user_id,month" });
-  return error;
+  if (error) return error;
+  const historyRows = rows.map(({ updated_at, ...row }) => ({ ...row, source_updated_at: updated_at }));
+  const { error: historyError } = await supabase.from("finance_month_snapshot_history").insert(historyRows);
+  return historyError;
 }
 
 const initialEntries: Entry[] = [
