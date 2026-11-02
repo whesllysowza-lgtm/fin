@@ -174,6 +174,12 @@ function hasSavedEntriesForMonth(payload: Record<string, unknown> | null, month:
   const monthEntries = (archivedData as Record<string, unknown>)[month];
   return Array.isArray(monthEntries) && monthEntries.length > 0;
 }
+function hasAnyDetailedEntries(payload: Record<string, unknown> | null) {
+  if (!payload) return false;
+  if (Array.isArray(payload.entries) && payload.entries.length > 0) return true;
+  const archivedData = payload.archivedData;
+  return Boolean(archivedData && typeof archivedData === "object" && !Array.isArray(archivedData) && Object.values(archivedData as Record<string, unknown>).some((value) => Array.isArray(value) && value.length > 0));
+}
 function nextMonth(label: string) {
   const [month, yearText] = label.split(" ");
   const index = Math.max(0, monthNames.indexOf(month));
@@ -220,6 +226,7 @@ export default function Home() {
   const persistTimerRef = useRef<number | null>(null);
   const userIdRef = useRef<string | null>(null);
   const skipNextPersistRef = useRef(false);
+  const hydratingRef = useRef(false);
   const latestSnapshotRef = useRef<AppSnapshot | null>(null);
   latestSnapshotRef.current = { boldText, appIcon, people, origins, expenses, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime };
 
@@ -289,6 +296,7 @@ export default function Home() {
         // Uma recuperação do rascunho precisa voltar ao Supabase; os demais
         // carregamentos continuam sem disparar uma gravação redundante.
         skipNextPersistRef.current = !recoverOctoberFromDraft;
+        hydratingRef.current = !recoverOctoberFromDraft;
         applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime, setBoldText, setAppIcon });
         const localBold = localStorage.getItem(`finance-bold:${user.id}`);
         if (localBold !== null) setBoldText(localBold === "true");
@@ -303,6 +311,10 @@ export default function Home() {
 
   useEffect(() => {
     if (!cloudLoaded || cloudLoadError) return;
+    if (hydratingRef.current) {
+      hydratingRef.current = false;
+      return;
+    }
     if (skipNextPersistRef.current) {
       skipNextPersistRef.current = false;
       return;
@@ -320,13 +332,26 @@ export default function Home() {
     const userId = userIdRef.current;
     if (!userId) return;
     const localDraftKey = `finance-state-draft:${userId}`;
-    // Grava imediatamente um rascunho individual para proteger alterações feitas antes de um F5.
+    // Grava imediatamente um rascunho e uma cópia versionada antes de tocar no Supabase.
     localStorage.setItem(localDraftKey, JSON.stringify(payload));
+    saveLocalJsonBackup(userId, payload);
     notify("Salvando alteração...");
     if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current);
     persistTimerRef.current = window.setTimeout(() => void (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      const { data: remoteState, error: remoteReadError } = await supabase.from("finance_state").select("payload").eq("user_id", user.id).maybeSingle();
+      if (remoteReadError) {
+        console.warn("[Supabase] Não foi possível validar o estado remoto antes de salvar:", remoteReadError.message);
+        notify("Não foi possível validar os dados antes de salvar. Tente novamente.");
+        return;
+      }
+      const remotePayload = remoteState?.payload as Record<string, unknown> | null;
+      if (hasAnyDetailedEntries(remotePayload) && !hasAnyDetailedEntries(payload)) {
+        console.error("[Supabase] Gravação bloqueada: o novo estado não possui lançamentos, mas o estado remoto possui dados.");
+        notify("Gravação bloqueada para proteger seus lançamentos. Atualize a página.");
+        return;
+      }
       const { error } = await supabase.from("finance_state").upsert({ id: user.id, user_id: user.id, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       if (error) {
         console.warn("[Supabase] Não foi possível salvar o estado online:", error.message);
