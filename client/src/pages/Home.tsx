@@ -38,6 +38,38 @@ function saveLocalJsonBackup(userId: string, snapshot: AppSnapshot) {
   }
 }
 
+async function saveMonthlySnapshots(userId: string, snapshot: AppSnapshot) {
+  const months = Array.from(new Set([
+    snapshot.currentMonth,
+    ...Object.keys(snapshot.summaries),
+    ...Object.keys(snapshot.archivedData),
+  ].filter(Boolean)));
+  const rows = months.map((month) => ({
+    user_id: userId,
+    month,
+    payload: {
+      version: 1,
+      month,
+      entries: snapshot.currentMonth === month ? snapshot.entries : (snapshot.archivedData[month] || []),
+      summary: snapshot.summaries[month] || emptyMonthlySummary(),
+      people: snapshot.people,
+      origins: snapshot.origins,
+      expenses: snapshot.expenses,
+      paidExpenses: snapshot.paidExpenses,
+      indicatorSettings: snapshot.indicatorSettings,
+      palette: snapshot.palette,
+      selectedPerson: snapshot.selectedPerson,
+      currentMonth: snapshot.currentMonth,
+      boldText: snapshot.boldText,
+      appIcon: snapshot.appIcon,
+    },
+    updated_at: new Date().toISOString(),
+  }));
+  if (!rows.length) return null;
+  const { error } = await supabase.from("finance_month_snapshots").upsert(rows, { onConflict: "user_id,month" });
+  return error;
+}
+
 const initialEntries: Entry[] = [
   { id: 1, person: "Vanessa", origin: "CARTÃO", expense: "FATURA", value: 10.9 },
   { id: 2, person: "Pai", origin: "CARTÃO", expense: "FATURA", value: 40 },
@@ -356,6 +388,12 @@ export default function Home() {
       if (error) {
         console.warn("[Supabase] Não foi possível salvar o estado online:", error.message);
         notify("Não foi possível salvar esta alteração. Tente novamente.");
+        return;
+      }
+      const monthlyError = await saveMonthlySnapshots(user.id, payload);
+      if (monthlyError) {
+        console.warn("[Supabase] Estado principal salvo, mas o snapshot mensal falhou:", monthlyError.message);
+        notify("Dados principais salvos; não foi possível criar a cópia mensal.");
         return;
       }
       localStorage.removeItem(localDraftKey);
