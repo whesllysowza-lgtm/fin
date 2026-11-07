@@ -120,10 +120,13 @@ function normalizedLabel(value: string) {
   return value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("pt-BR");
 }
 function isCardOrigin(value: string) {
-  return normalizedLabel(value) === "CARTAO";
+  return ["CARTAO", "CARTAO DE CREDITO"].includes(normalizedLabel(value));
 }
 function isInvoiceExpense(value: string) {
   return ["FATURA", "FUTURA"].includes(normalizedLabel(value));
+}
+function isSimpleOrigin(value: string) {
+  return ["CONTA SIMPLES", "DESPESAS SIMPLES"].includes(normalizedLabel(value));
 }
 
 function hexToHsl(hex: string) {
@@ -765,7 +768,11 @@ export default function Home() {
     const cardOrigin = isCardOrigin(origin);
     const invoiceExpense = isInvoiceExpense(expense);
     if (cardOrigin !== invoiceExpense) {
-      notify(cardOrigin ? "Para origem CARTÃO, escolha despesa FATURA ou FUTURA." : "Para despesa FATURA ou FUTURA, escolha origem CARTÃO.");
+      notify(cardOrigin ? "Para origem CARTÃO ou CARTÃO DE CRÉDITO, escolha despesa FATURA ou FUTURA." : "Para despesa FATURA ou FUTURA, escolha origem CARTÃO ou CARTÃO DE CRÉDITO.");
+      return;
+    }
+    if (!cardOrigin && !isSimpleOrigin(origin)) {
+      notify("Para uma despesa comum, escolha origem CONTA SIMPLES ou DESPESAS SIMPLES.");
       return;
     }
     setEntries((current) => [{ id: Date.now(), person, origin, expense, value }, ...current]);
