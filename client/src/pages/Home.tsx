@@ -116,6 +116,12 @@ function parseAmount(input: string) {
   const normalized = value.includes(",") && value.includes(".") ? value.replace(/\./g, "").replace(",", ".") : value.replace(",", ".");
   return Number(normalized);
 }
+function normalizedLabel(value: string) {
+  return value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("pt-BR");
+}
+function isCardOrigin(value: string) {
+  return normalizedLabel(value) === "CARTAO";
+}
 
 function hexToHsl(hex: string) {
   const value = hex.replace("#", "");
@@ -410,7 +416,7 @@ export default function Home() {
   const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
   const selectedExpenses = useMemo(() => selectedEntries.reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
-  const selectedCard = useMemo(() => selectedEntries.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
+  const selectedCard = useMemo(() => selectedEntries.filter((entry) => isCardOrigin(entry.origin)).reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
   const invoiceTotal = useMemo(() => entries
     .filter((entry) => ["FATURA", "FUTURA"].includes(entry.expense.trim().toLocaleUpperCase("pt-BR")))
     .reduce((sum, entry) => sum + entry.value, 0), [entries]);
@@ -714,7 +720,7 @@ export default function Home() {
 
   const recalculateMonth = (month: string, rows: Entry[], current: Record<string, MonthlySummary>) => {
     const previous = current[month] || emptyMonthlySummary();
-    return { ...current, [month]: { ...previous, expenses: rows.reduce((sum, entry) => sum + entry.value, 0), card: rows.filter((entry) => entry.origin === "CARTÃO").reduce((sum, entry) => sum + entry.value, 0) } };
+    return { ...current, [month]: { ...previous, expenses: rows.reduce((sum, entry) => sum + entry.value, 0), card: rows.filter((entry) => isCardOrigin(entry.origin)).reduce((sum, entry) => sum + entry.value, 0) } };
   };
   const editEntry = (month: string, updated: Entry) => {
     if (month === currentMonth) {
@@ -742,12 +748,22 @@ export default function Home() {
   const register = (event: FormEvent) => {
     event.preventDefault();
     const value = parseAmount(form.value);
-    if (!form.person || !form.origin || !form.expense || !value) {
-      notify("Preencha pessoa, origem, despesa e valor.");
+    const person = form.person.trim();
+    const origin = form.origin.trim();
+    const expense = form.expense.trim();
+    if (!person || !origin || !expense) {
+      notify("Preencha pessoa, origem e despesa.");
       return;
     }
-    setEntries((current) => [{ id: Date.now(), person: form.person, origin: form.origin, expense: form.expense, value }, ...current]);
-    setSummaries((current) => { const previous = current[currentMonth] || emptyMonthlySummary(); return { ...current, [currentMonth]: { ...previous, expenses: previous.expenses + value, card: previous.card + (form.origin === "CARTÃO" ? value : 0) } }; });
+    if (!Number.isFinite(value) || value <= 0) {
+      notify("Informe um valor maior que zero. Use vírgula ou ponto.");
+      return;
+    }
+    // A origem e a despesa são independentes: cartão, conta simples ou
+    // qualquer origem personalizada podem ser combinados com qualquer nome
+    // de despesa. A origem só define o cálculo do cartão.
+    setEntries((current) => [{ id: Date.now(), person, origin, expense, value }, ...current]);
+    setSummaries((current) => { const previous = current[currentMonth] || emptyMonthlySummary(); return { ...current, [currentMonth]: { ...previous, expenses: previous.expenses + value, card: previous.card + (isCardOrigin(origin) ? value : 0) } }; });
     setForm({ person: "", origin: "", expense: "", value: "" });
     notify("Registro adicionado. Salvando...");
     setTab("HISTÓRICO");
@@ -821,7 +837,7 @@ function PalettePicker({ label, value, onChange }: { label: string; value: strin
 }
 function Register({ form, setForm, onSubmit, people, origins, expenses }: { people: string[]; origins: string[]; expenses: string[]; form: { person: string; origin: string; expense: string; value: string }; setForm: React.Dispatch<React.SetStateAction<{ person: string; origin: string; expense: string; value: string }>>; onSubmit: (event: FormEvent) => void }) {
   const choose = (field: "person" | "origin" | "expense", value: string) => setForm((current) => ({ ...current, [field]: value }));
-  return <section className="register-view"><div className="section-title"><span>REGISTRO</span><h1>Adicionar despesa</h1><p>Abra cada seletor para escolher pessoa, origem e despesa.</p></div><form className="register-card" onSubmit={onSubmit}><Field label="PESSOA"><Select value={form.person} placeholder="Selecione uma pessoa" options={people} onChange={(value) => choose("person", value)} /></Field><Field label="ORIGEM"><Select value={form.origin} placeholder="Selecione a origem" options={origins} onChange={(value) => choose("origin", value)} /></Field><Field label="DESPESA"><Select value={form.expense} placeholder="Selecione uma despesa" options={expenses} onChange={(value) => choose("expense", value)} /></Field><label className="field-label">VALOR<input className="sheet-input" inputMode="decimal" placeholder="R$ 0,00" value={form.value} onChange={(event) => setForm((current) => ({ ...current, value: event.target.value }))} /></label><button className="register-button" type="submit">REGISTRAR</button></form></section>;
+  return <section className="register-view"><div className="section-title"><span>REGISTRO</span><h1>Adicionar despesa</h1><p>Origem e despesa são independentes: você pode combinar cartão ou conta simples com qualquer despesa.</p></div><form className="register-card" onSubmit={onSubmit}><Field label="PESSOA"><Select value={form.person} placeholder="Selecione uma pessoa" options={people} onChange={(value) => choose("person", value)} /></Field><Field label="ORIGEM"><Select value={form.origin} placeholder="Selecione a origem" options={origins} onChange={(value) => choose("origin", value)} /></Field><Field label="DESPESA"><Select value={form.expense} placeholder="Selecione uma despesa" options={expenses} onChange={(value) => choose("expense", value)} /></Field><label className="field-label">VALOR<input className="sheet-input" inputMode="decimal" placeholder="R$ 0,00" value={form.value} onChange={(event) => setForm((current) => ({ ...current, value: event.target.value }))} /></label><button className="register-button" type="submit">REGISTRAR</button></form></section>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="field-label">{label}{children}</label>; }
