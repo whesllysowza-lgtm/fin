@@ -55,7 +55,7 @@ async function saveMonthlySnapshots(userId: string, snapshot: AppSnapshot) {
       people: snapshot.people,
       origins: snapshot.origins,
       expenses: snapshot.expenses,
-      paidExpenses: snapshot.paidExpenses,
+      paidExpenses: Object.fromEntries(Object.entries(snapshot.paidExpenses).filter(([key]) => key.startsWith(`${month}::`))),
       indicatorSettings: snapshot.indicatorSettings,
       palette: snapshot.palette,
       selectedPerson: snapshot.selectedPerson,
@@ -128,6 +128,14 @@ function isInvoiceExpense(value: string) {
 function isSimpleOrigin(value: string) {
   return ["CONTA SIMPLES", "DESPESAS SIMPLES"].includes(normalizedLabel(value));
 }
+const paidExpenseKey = (month: string, expense: string) => `${month}::${expense}`;
+function normalizePaidExpenses(value: unknown, month: string): Record<string, boolean> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).flatMap(([key, paid]) => {
+    if (typeof paid !== "boolean") return [];
+    return [[key.includes("::") ? key : paidExpenseKey(month, key), paid]];
+  }));
+}
 
 function hexToHsl(hex: string) {
   const value = hex.replace("#", "");
@@ -196,7 +204,7 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   if (Array.isArray(payload.people)) setters.setPeople(payload.people as string[]);
   if (Array.isArray(payload.origins)) setters.setOrigins(payload.origins as string[]);
   if (Array.isArray(payload.expenses)) setters.setExpenses(payload.expenses as string[]);
-  if (payload.paidExpenses && typeof payload.paidExpenses === "object") setters.setPaidExpenses(payload.paidExpenses as Record<string, boolean>);
+  if (payload.paidExpenses && typeof payload.paidExpenses === "object") setters.setPaidExpenses(normalizePaidExpenses(payload.paidExpenses, typeof payload.currentMonth === "string" ? payload.currentMonth : calendarMonth()));
   if (Array.isArray(payload.entries)) setters.setEntries(payload.entries as Entry[]);
   if (Array.isArray(payload.archivedMonths)) setters.setArchivedMonths(payload.archivedMonths as string[]);
   if (payload.archivedData && typeof payload.archivedData === "object") setters.setArchivedData(payload.archivedData as Record<string, Entry[]>);
@@ -570,9 +578,16 @@ export default function Home() {
       if (previous && previous !== name) {
         if (kind === "expenses") {
           setPaidExpenses((current) => {
-            if (!(previous in current)) return current;
-            const next = { ...current, [name]: current[previous] };
-            delete next[previous];
+            const next = { ...current };
+            Object.entries(current).forEach(([key, paid]) => {
+              if (key === previous) {
+                next[name] = paid;
+                delete next[key];
+              } else if (key.endsWith(`::${previous}`)) {
+                next[`${key.slice(0, -previous.length)}${name}`] = paid;
+                delete next[key];
+              }
+            });
             return next;
           });
         }
@@ -596,10 +611,13 @@ export default function Home() {
     const removed = lists[kind][index];
     const setters = { people: setPeople, origins: setOrigins, expenses: setExpenses };
     setters[kind]((current) => current.filter((_, itemIndex) => itemIndex !== index));
-    if (kind === "expenses") setPaidExpenses((current) => { const next = { ...current }; delete next[removed]; return next; });
+    if (kind === "expenses") setPaidExpenses((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== removed && !key.endsWith(`::${removed}`))));
     if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || "");
   };
-  const togglePaidExpense = (expense: string) => setPaidExpenses((current) => ({ ...current, [expense]: !current[expense] }));
+  const togglePaidExpense = (expense: string) => setPaidExpenses((current) => {
+    const key = paidExpenseKey(currentMonth, expense);
+    return { ...current, [key]: !current[key] };
+  });
   const toggleBoldText = () => setBoldText((current) => {
     const next = !current;
     const userId = userIdRef.current;
@@ -802,7 +820,7 @@ export default function Home() {
         {tab === "REGISTRO" && <Register form={form} setForm={setForm} onSubmit={register} people={people} origins={origins} expenses={expenses} />}
         {tab === "HISTÓRICO" && <HistoryView entries={filteredEntries} allEntries={selectedEntries} search={search} setSearch={setSearch} month={currentMonth} archivedMonths={archivedMonths} archivedData={archivedData} summaries={summaries} person={selectedPerson} onEdit={editEntry} onDelete={deleteEntry} onMonthChange={switchMonth} />}
         {tab === "CATEGORIAS" && <CategoriesView people={people} origins={origins} expenses={expenses} onRename={updateCategory} onAdd={addCategory} onRemove={removeCategory} />}
-        {tab === "LISTA" && <ExpenseListView expenses={expenses} paidExpenses={paidExpenses} onTogglePaid={togglePaidExpense} />}
+      {tab === "LISTA" && <ExpenseListView month={currentMonth} expenses={expenses} paidExpenses={paidExpenses} onTogglePaid={togglePaidExpense} />}
       </main>
       {isSalaryPerson && <FinanceMascot leftover={leftover} activityKey={selectedExpenses} visible={showMascot} />}
       {showSalaryEditor && <div className="salary-editor-backdrop" role="presentation" onClick={() => setShowSalaryEditor(false)}><div className="salary-editor-modal" role="dialog" aria-modal="true" aria-labelledby="salary-editor-title" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR SALÁRIO</span><h2 id="salary-editor-title">Salário de {currentMonth}</h2><p>Altere o valor deste mês. O salário ficará salvo no histórico mensal do Supabase.</p><label className="field-label">VALOR DO SALÁRIO<input className="sheet-input" inputMode="decimal" autoFocus value={salaryDraft} onChange={(event) => setSalaryDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveSalary(); }} /></label><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowSalaryEditor(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveSalary}>Salvar salário</button></div></div></div>}
@@ -911,8 +929,8 @@ function CategoriesView({ people, origins, expenses, onRename, onAdd, onRemove }
   return <section className="categories-view"><div className="section-title"><span>CATEGORIAS</span><h1>Listas editáveis</h1><p>Altere qualquer nome; a mudança é salva e atualiza os registros do sistema.</p></div><div className="category-columns"><Category title="PESSOAS" kind="people" items={people} onRename={onRename} onAdd={onAdd} onRemove={onRemove} /><Category title="ORIGEM" kind="origins" items={origins} onRename={onRename} onAdd={onAdd} onRemove={onRemove} /><Category title="DESPESAS" kind="expenses" items={expenses} onRename={onRename} onAdd={onAdd} onRemove={onRemove} /></div></section>;
 }
 
-function ExpenseListView({ expenses, paidExpenses, onTogglePaid }: { expenses: string[]; paidExpenses: Record<string, boolean>; onTogglePaid: (expense: string) => void }) {
-  return <section className="categories-view"><div className="section-title"><span>LISTA DESPESAS</span><h1>Controle de despesas</h1><p>Marque quais despesas já foram pagas. Isso não altera os lançamentos.</p></div><div className="paid-expenses-list"><div className="paid-expenses-heading"><span>DESPESAS CADASTRADAS</span><p>Os nomes vêm da aba Categorias.</p></div>{expenses.length === 0 ? <small className="quick-choices-empty">Adicione despesas na aba Categorias.</small> : expenses.map((expense) => <label className={`paid-expense-row ${paidExpenses[expense] ? "is-paid" : ""}`} key={expense}><input type="checkbox" checked={Boolean(paidExpenses[expense])} onChange={() => onTogglePaid(expense)} aria-label={`${paidExpenses[expense] ? "Desmarcar" : "Marcar"} ${expense} como já pago`} /><span className="paid-expense-action">{paidExpenses[expense] ? "Já foi pago" : "Marcar como pago"}</span><span className="paid-expense-name">{expense}</span></label>)}</div></section>;
+function ExpenseListView({ month, expenses, paidExpenses, onTogglePaid }: { month: string; expenses: string[]; paidExpenses: Record<string, boolean>; onTogglePaid: (expense: string) => void }) {
+  return <section className="categories-view"><div className="section-title"><span>LISTA DESPESAS</span><h1>Controle de despesas</h1><p>Marcações de pagamento exclusivas de {month}. Trocar o mês mostra uma lista independente.</p></div><div className="paid-expenses-list"><div className="paid-expenses-heading"><span>DESPESAS CADASTRADAS</span><p>Os nomes vêm da aba Categorias.</p></div>{expenses.length === 0 ? <small className="quick-choices-empty">Adicione despesas na aba Categorias.</small> : expenses.map((expense) => { const key = paidExpenseKey(month, expense); const paid = Boolean(paidExpenses[key]); return <label className={`paid-expense-row ${paid ? "is-paid" : ""}`} key={expense}><input type="checkbox" checked={paid} onChange={() => onTogglePaid(expense)} aria-label={`${paid ? "Desmarcar" : "Marcar"} ${expense} como já pago em ${month}`} /><span className="paid-expense-action">{paid ? "Já foi pago" : "Marcar como pago"}</span><span className="paid-expense-name">{expense}</span></label>; })}</div></section>;
 }
 function Category({ title, kind, items, onRename, onAdd, onRemove }: { title: string; kind: "people" | "origins" | "expenses"; items: string[]; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
   const [newName, setNewName] = useState("");
