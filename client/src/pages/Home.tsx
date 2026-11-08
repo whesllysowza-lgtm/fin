@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import FinanceMascot from "@/components/FinanceMascot";
+import { isPaidExpense, normalizePaidExpenses, paidExpenseKey, removePaidExpense, renamePaidExpense, togglePaidExpense as togglePaidExpenseState } from "@/lib/monthlyPaidExpenses";
 import { BarChart3, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LogOut, Eye, EyeOff, Bold } from "lucide-react";
 
 type Entry = { id: number; person: string; origin: string; expense: string; value: number };
@@ -128,15 +129,6 @@ function isInvoiceExpense(value: string) {
 function isSimpleOrigin(value: string) {
   return ["CONTA SIMPLES", "DESPESAS SIMPLES"].includes(normalizedLabel(value));
 }
-const paidExpenseKey = (month: string, expense: string) => `${month}::${expense}`;
-function normalizePaidExpenses(value: unknown, month: string): Record<string, boolean> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return Object.fromEntries(Object.entries(value as Record<string, unknown>).flatMap(([key, paid]) => {
-    if (typeof paid !== "boolean") return [];
-    return [[key.includes("::") ? key : paidExpenseKey(month, key), paid]];
-  }));
-}
-
 function hexToHsl(hex: string) {
   const value = hex.replace("#", "");
   const r = parseInt(value.slice(0, 2), 16) / 255;
@@ -578,17 +570,7 @@ export default function Home() {
       if (previous && previous !== name) {
         if (kind === "expenses") {
           setPaidExpenses((current) => {
-            const next = { ...current };
-            Object.entries(current).forEach(([key, paid]) => {
-              if (key === previous) {
-                next[name] = paid;
-                delete next[key];
-              } else if (key.endsWith(`::${previous}`)) {
-                next[`${key.slice(0, -previous.length)}${name}`] = paid;
-                delete next[key];
-              }
-            });
-            return next;
+            return renamePaidExpense(current, previous, name);
           });
         }
         setEntries((current) => current.map((entry) => kind === "origins" ? (entry.origin === previous ? { ...entry, origin: name } : entry) : (entry.expense === previous ? { ...entry, expense: name } : entry)));
@@ -611,13 +593,10 @@ export default function Home() {
     const removed = lists[kind][index];
     const setters = { people: setPeople, origins: setOrigins, expenses: setExpenses };
     setters[kind]((current) => current.filter((_, itemIndex) => itemIndex !== index));
-    if (kind === "expenses") setPaidExpenses((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== removed && !key.endsWith(`::${removed}`))));
+    if (kind === "expenses") setPaidExpenses((current) => removePaidExpense(current, removed));
     if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || "");
   };
-  const togglePaidExpense = (expense: string) => setPaidExpenses((current) => {
-    const key = paidExpenseKey(currentMonth, expense);
-    return { ...current, [key]: !current[key] };
-  });
+  const togglePaidExpense = (expense: string) => setPaidExpenses((current) => togglePaidExpenseState(current, currentMonth, expense));
   const toggleBoldText = () => setBoldText((current) => {
     const next = !current;
     const userId = userIdRef.current;
@@ -931,7 +910,7 @@ function CategoriesView({ people, origins, expenses, onRename, onAdd, onRemove }
 }
 
 function ExpenseListView({ month, expenses, paidExpenses, onTogglePaid }: { month: string; expenses: string[]; paidExpenses: Record<string, boolean>; onTogglePaid: (expense: string) => void }) {
-  return <section className="categories-view"><div className="section-title"><span>LISTA DESPESAS</span><h1>Controle de despesas</h1><p>Marcações de pagamento exclusivas de {month}. Trocar o mês mostra uma lista independente.</p></div><div className="paid-expenses-list"><div className="paid-expenses-heading"><span>DESPESAS CADASTRADAS</span><p>Os nomes vêm da aba Categorias.</p></div>{expenses.length === 0 ? <small className="quick-choices-empty">Adicione despesas na aba Categorias.</small> : expenses.map((expense) => { const key = paidExpenseKey(month, expense); const paid = Boolean(paidExpenses[key]); return <label className={`paid-expense-row ${paid ? "is-paid" : ""}`} key={expense}><input type="checkbox" checked={paid} onChange={() => onTogglePaid(expense)} aria-label={`${paid ? "Desmarcar" : "Marcar"} ${expense} como já pago em ${month}`} /><span className="paid-expense-action">{paid ? "Já foi pago" : "Marcar como pago"}</span><span className="paid-expense-name">{expense}</span></label>; })}</div></section>;
+  return <section className="categories-view"><div className="section-title"><span>LISTA DESPESAS</span><h1>Controle de despesas</h1><p>Marcações de pagamento exclusivas de {month}. Trocar o mês mostra uma lista independente.</p></div><div className="paid-expenses-list"><div className="paid-expenses-heading"><span>DESPESAS CADASTRADAS</span><p>Os nomes vêm da aba Categorias.</p></div>{expenses.length === 0 ? <small className="quick-choices-empty">Adicione despesas na aba Categorias.</small> : expenses.map((expense) => { const paid = isPaidExpense(paidExpenses, month, expense); return <label className={`paid-expense-row ${paid ? "is-paid" : ""}`} key={expense}><input type="checkbox" checked={paid} onChange={() => onTogglePaid(expense)} aria-label={`${paid ? "Desmarcar" : "Marcar"} ${expense} como já pago em ${month}`} /><span className="paid-expense-action">{paid ? "Já foi pago" : "Marcar como pago"}</span><span className="paid-expense-name">{expense}</span></label>; })}</div></section>;
 }
 function Category({ title, kind, items, onRename, onAdd, onRemove }: { title: string; kind: "people" | "origins" | "expenses"; items: string[]; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
   const [newName, setNewName] = useState("");
