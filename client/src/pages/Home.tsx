@@ -706,11 +706,12 @@ export default function Home() {
   const goToCurrentMonth = () => {
     const realMonth = calendarMonth();
     if (currentMonth === realMonth) { setTab("PAINEL"); notify(`Você já está no mês atual: ${realMonth}.`); return; }
+    const targetEntries = archivedData[realMonth] || [];
     if (entries.length > 0) {
       setArchivedMonths((current) => current.includes(currentMonth) ? current : [currentMonth, ...current]);
       setArchivedData((current) => ({ ...current, [currentMonth]: entries }));
     }
-    setEntries([]);
+    setEntries(targetEntries);
     setSummaries((current) => ({ ...current, [realMonth]: current[realMonth] || emptyMonthlySummary() }));
     setCurrentMonth(realMonth);
     setTab("PAINEL");
