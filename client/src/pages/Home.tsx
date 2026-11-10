@@ -28,6 +28,7 @@ function smartPalette(primary: string): ThemePalette {
 type AppSnapshot = { boldText: boolean; appIcon: AppIcon; people: string[]; origins: string[]; expenses: string[]; paidExpenses: Record<string, boolean>; entries: Entry[]; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; indicatorSettings: Record<string, IndicatorSettings>; palette: ThemePalette; currentMonth: string; alertEmail: string; selectedPerson: string; reminderEnabled: boolean; reminderTime: string };
 
 const localBackupKey = (userId: string) => `finance-json-backups:${userId}`;
+const localDraftSavedAtKey = (userId: string) => `finance-state-draft-saved-at:${userId}`;
 function saveLocalJsonBackup(userId: string, snapshot: AppSnapshot) {
   try {
     const key = localBackupKey(userId);
@@ -321,19 +322,23 @@ export default function Home() {
       userIdRef.current = user.id;
       const metadata = user.user_metadata as { full_name?: string; name?: string } | undefined;
       setAccountLabel(metadata?.full_name?.trim() || metadata?.name?.trim() || user.email || "usuário");
-      const { data, error } = await supabase.from("finance_state").select("payload").eq("user_id", user.id).maybeSingle();
+      const { data, error } = await supabase.from("finance_state").select("payload, updated_at").eq("user_id", user.id).maybeSingle();
       if (!active) return;
       const localDraftKey = `finance-state-draft:${user.id}`;
       let localDraft: Record<string, unknown> | null = null;
       try { localDraft = JSON.parse(localStorage.getItem(localDraftKey) || "null") as Record<string, unknown> | null; } catch { localDraft = null; }
       const cloudState = data?.payload as Record<string, unknown> | null;
+      const localDraftSavedAt = Number(localStorage.getItem(localDraftSavedAtKey(user.id)) || 0);
       // O estado online continua sendo a fonte principal. Exceção segura:
       // se o rascunho individual ainda tiver lançamentos de Outubro e o
       // estado online estiver sem eles, recuperamos o rascunho local em vez
       // de aceitar silenciosamente um mês vazio.
       const recoverOctoberFromDraft = hasSavedEntriesForMonth(localDraft, "Outubro 2026") && !hasSavedEntriesForMonth(cloudState, "Outubro 2026");
-      const cloudPayload = (recoverOctoberFromDraft ? localDraft : (cloudState || localDraft)) as Record<string, unknown> | null;
+      const cloudUpdatedAt = data?.updated_at ? Date.parse(data.updated_at) : 0;
+      const recoverNewerLocalDraft = Boolean(localDraft && localDraftSavedAt > cloudUpdatedAt);
+      const cloudPayload = (recoverOctoberFromDraft || recoverNewerLocalDraft ? localDraft : (cloudState || localDraft)) as Record<string, unknown> | null;
       if (recoverOctoberFromDraft) notify("Encontramos uma cópia local de Outubro e vamos recuperá-la.");
+      else if (recoverNewerLocalDraft) notify("Encontramos uma alteração local mais recente e vamos sincronizá-la.");
       if (error) {
         console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
         setCloudLoadError("Não foi possível carregar seus dados salvos. Tente atualizar a página.");
@@ -342,8 +347,8 @@ export default function Home() {
       } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
         // Uma recuperação do rascunho precisa voltar ao Supabase; os demais
         // carregamentos continuam sem disparar uma gravação redundante.
-        skipNextPersistRef.current = !recoverOctoberFromDraft;
-        hydratingRef.current = !recoverOctoberFromDraft;
+        skipNextPersistRef.current = !(recoverOctoberFromDraft || recoverNewerLocalDraft);
+        hydratingRef.current = !(recoverOctoberFromDraft || recoverNewerLocalDraft);
         applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime, setBoldText, setAppIcon });
         const localBold = localStorage.getItem(`finance-bold:${user.id}`);
         if (localBold !== null) setBoldText(localBold === "true");
@@ -381,6 +386,7 @@ export default function Home() {
     const localDraftKey = `finance-state-draft:${userId}`;
     // Grava imediatamente um rascunho e uma cópia versionada antes de tocar no Supabase.
     localStorage.setItem(localDraftKey, JSON.stringify(payload));
+    localStorage.setItem(localDraftSavedAtKey(userId), String(Date.now()));
     saveLocalJsonBackup(userId, payload);
     notify("Salvando alteração...");
     if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current);
@@ -412,6 +418,7 @@ export default function Home() {
         return;
       }
       localStorage.removeItem(localDraftKey);
+      localStorage.removeItem(localDraftSavedAtKey(userId));
       legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
       notify("Alteração salva no Supabase.");
     })(), 350);
@@ -596,7 +603,10 @@ export default function Home() {
     if (kind === "expenses") setPaidExpenses((current) => removePaidExpense(current, removed));
     if (kind === "people" && selectedPerson === removed) setSelectedPerson(people.find((item) => item !== removed) || "");
   };
-  const togglePaidExpense = (expense: string) => setPaidExpenses((current) => togglePaidExpenseState(current, currentMonth, expense));
+  const togglePaidExpense = (expense: string) => {
+    notify("Salvando marcação da Lista...");
+    setPaidExpenses((current) => togglePaidExpenseState(current, currentMonth, expense));
+  };
   const toggleBoldText = () => setBoldText((current) => {
     const next = !current;
     const userId = userIdRef.current;
