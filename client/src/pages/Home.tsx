@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import FinanceMascot from "@/components/FinanceMascot";
 import { isPaidExpense, normalizePaidExpenses, paidExpenseKey, removePaidExpense, renamePaidExpense, togglePaidExpense as togglePaidExpenseState } from "@/lib/monthlyPaidExpenses";
-import { BarChart3, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LogOut, Eye, EyeOff, Bold } from "lucide-react";
+import { BarChart3, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LogOut, Eye, EyeOff, Bold, RefreshCw } from "lucide-react";
 
 type Entry = { id: number; person: string; origin: string; expense: string; value: number };
 type MonthlySummary = { salary: number; expenses: number; card: number };
@@ -268,6 +268,7 @@ export default function Home() {
   const [cloudLoadError, setCloudLoadError] = useState("");
   const [showMascot, setShowMascot] = useState(true);
   const [canUndo, setCanUndo] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const lastSnapshotRef = useRef<AppSnapshot | null>(null);
   const undoSnapshotRef = useRef<AppSnapshot | null>(null);
   const skipHistoryRef = useRef(false);
@@ -462,6 +463,39 @@ export default function Home() {
   const notify = (text: string) => {
     setMessage(text);
     window.setTimeout(() => setMessage(""), 2400);
+  };
+  const syncNow = async () => {
+    const userId = userIdRef.current;
+    const payload = latestSnapshotRef.current;
+    if (!userId || !payload || isSyncing) return;
+    setIsSyncing(true);
+    const localDraftKey = `finance-state-draft:${userId}`;
+    localStorage.setItem(localDraftKey, JSON.stringify(payload));
+    localStorage.setItem(localDraftSavedAtKey(userId), String(Date.now()));
+    notify("Sincronizando com o Supabase...");
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user || user.id !== userId) throw new Error("Sessão não autenticada.");
+      const { data: remoteState, error: remoteReadError } = await supabase.from("finance_state").select("payload").eq("user_id", userId).maybeSingle();
+      if (remoteReadError) throw remoteReadError;
+      const remotePayload = remoteState?.payload as Record<string, unknown> | null;
+      if (hasAnyDetailedEntries(remotePayload) && !hasAnyDetailedEntries(payload)) {
+        notify("Sincronização bloqueada para proteger seus lançamentos.");
+        return;
+      }
+      const { error } = await supabase.from("finance_state").upsert({ id: userId, user_id: userId, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      if (error) throw error;
+      const monthlyError = await saveMonthlySnapshots(userId, payload);
+      if (monthlyError) throw monthlyError;
+      localStorage.removeItem(localDraftKey);
+      localStorage.removeItem(localDraftSavedAtKey(userId));
+      notify("Sincronização concluída no Supabase.");
+    } catch (error) {
+      console.warn("[Supabase] Sincronização manual falhou:", error);
+      notify("Não foi possível sincronizar. O rascunho local foi preservado.");
+    } finally {
+      setIsSyncing(false);
+    }
   };
   const closeSettings = () => {
     setShowSettings(false);
@@ -800,8 +834,8 @@ export default function Home() {
   if (!cloudLoaded) return <div className="auth-loading">Carregando seus dados salvos...</div>;
   if (cloudLoadError) return <div className="auth-loading">{cloudLoadError}</div>;
   return (
-    <div className={`sheet-app ${boldText ? "strong-mode" : ""}`} style={{ "--theme-primary": activePalette.primary, "--theme-background": activePalette.background, "--theme-card": activePalette.card, "--theme-text": activePalette.text, "--theme-gradient-accent": gradientAccent } as React.CSSProperties}>
-      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={() => setShowIconPicker(true)} aria-label="Escolher ícone do aplicativo" title="Escolher ícone"><span className="sheet-logo"><img src={`/icons/${appIcon}.svg`} alt="" /></span><span><strong>Conta de {accountLabel}</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button type="button" className={`bold-toggle ${boldText ? "active" : ""}`} onClick={toggleBoldText} aria-label="Alternar texto em negrito" title="Alternar negrito"><Bold size={15} /></button><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void handleSignOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
+      <div className={`sheet-app ${boldText ? "strong-mode" : ""}`} style={{ "--theme-primary": activePalette.primary, "--theme-background": activePalette.background, "--theme-card": activePalette.card, "--theme-text": activePalette.text, "--theme-gradient-accent": gradientAccent } as React.CSSProperties}>
+      <header className="sheet-topbar"><button className="sheet-brand account-button" type="button" onClick={() => setShowIconPicker(true)} aria-label="Escolher ícone do aplicativo" title="Escolher ícone"><span className="sheet-logo"><img src={`/icons/${appIcon}.svg`} alt="" /></span><span><strong>Conta de {accountLabel}</strong><small>{currentMonth}</small></span></button><div className="top-actions"><button type="button" className={`sync-now-button ${isSyncing ? "is-syncing" : ""}`} onClick={() => { void syncNow(); }} disabled={isSyncing} aria-label="Sincronizar agora" title={isSyncing ? "Sincronizando..." : "Sincronizar agora"}><RefreshCw size={15} /> <span>{isSyncing ? "Salvando" : "Sincronizar"}</span></button><button type="button" className={`bold-toggle ${boldText ? "active" : ""}`} onClick={toggleBoldText} aria-label="Alternar texto em negrito" title="Alternar negrito"><Bold size={15} /></button><button className="new-month-button" type="button" onClick={(event) => { event.preventDefault(); requestNewMonth(); }}>Novo mês</button><button className="undo-button" type="button" onClick={(event) => { event.preventDefault(); undoLastAction(); }} disabled={!canUndo} aria-label="Desfazer última ação" title="Desfazer última ação (Ctrl+Z)"><Undo2 size={16} /></button><button className="top-icon" type="button" onClick={(event) => { event.preventDefault(); setShowSettings(true); }} aria-label="Configurações"><Settings2 size={18} /></button><button className="top-icon sign-out-button" type="button" onClick={() => { void handleSignOut(); }} aria-label="Sair da conta" title="Sair"><LogOut size={18} /></button></div></header>
       {showIconPicker && <div className="icon-picker-backdrop" role="presentation" onClick={() => setShowIconPicker(false)}><div className="icon-picker-modal" role="dialog" aria-modal="true" aria-labelledby="icon-picker-title" onClick={(event) => event.stopPropagation()}><div className="icon-picker-heading"><strong id="icon-picker-title">Escolher ícone</strong><button type="button" onClick={() => setShowIconPicker(false)} aria-label="Fechar escolha de ícone"><X size={16} /></button></div><div className="icon-picker-options">{appIconOptions.map((option) => <button type="button" className={appIcon === option.id ? "selected" : ""} key={option.id} onClick={() => chooseAppIcon(option.id)}><img src={`/icons/${option.id}.svg`} alt="" /><span>{option.label}</span></button>)}</div><small>Salvo automaticamente nesta conta.</small></div></div>}
       <main className="sheet-main">
         <nav className="sheet-tabs" aria-label="Seções da planilha">{[["PAINEL", HomeIcon], ["REGISTRO", ClipboardList], ["HISTÓRICO", History], ["CATEGORIAS", BarChart3], ["LISTA", ClipboardList]].map(([name, Icon]) => <button key={name as string} className={tab === name ? "selected" : ""} type="button" onClick={(event) => { event.preventDefault(); setTab(name as string); }}><Icon size={16} /><span>{name as string}</span></button>)}</nav>
