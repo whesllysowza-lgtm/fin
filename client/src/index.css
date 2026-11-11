@@ -2066,3 +2066,11 @@ html, body { background: linear-gradient(135deg, #e8f7ff 0%, #f8fcff 48%, #cfeef
 :root[data-user-theme-active="true"] .install-app-button:hover {
   filter: brightness(.94);
 }
+
+
+/* Em telas pequenas, reserva espaço do cabeçalho para os ícones de uso frequente. */
+@media (max-width: 720px) {
+  .sheet-app .new-month-button {
+    display: none !important;
+  }
+}
