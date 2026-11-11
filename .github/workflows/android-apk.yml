@@ -21,10 +21,10 @@ jobs:
           java-version: "21"
           cache: gradle
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: true
+      - name: Accept Android SDK licenses
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;35.0.0"
 
       - name: Build web assets and sync Capacitor
         run: npm ci && npm run android:build
