@@ -1,4 +1,4 @@
-const CACHE_NAME = "financas-wesly-v6";
+const CACHE_NAME = "financas-wesly-v7";
 const CACHE_PREFIX = "financas-wesly-";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/icons/finance-icon.svg", "/icons/finance-wallet.svg", "/icons/finance-chart.svg", "/icons/finance-coin.svg", "/icons/finance-piggy.svg", "/icons/finance-wallet-192.png", "/icons/finance-wallet-512.png", "/icons/finance-chart-192.png", "/icons/finance-chart-512.png", "/icons/finance-coin-192.png", "/icons/finance-coin-512.png", "/icons/finance-piggy-192.png", "/icons/finance-piggy-512.png", "/manifests/finance-wallet.webmanifest", "/manifests/finance-chart.webmanifest", "/manifests/finance-coin.webmanifest", "/manifests/finance-piggy.webmanifest"];
 
@@ -22,6 +22,14 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+    const current = clients.find((client) => "focus" in client);
+    return current ? current.focus() : self.clients.openWindow("/");
+  }));
 });
 
 self.addEventListener("fetch", (event) => {

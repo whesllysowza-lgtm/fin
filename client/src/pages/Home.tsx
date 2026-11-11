@@ -221,6 +221,22 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
 }
 
 function calendarMonth() { const now = new Date(); return `${monthNames[now.getMonth()]} ${now.getFullYear()}`; }
+function monthEndReminderKey(userId: string, month: string) { return `finance-month-end-reminder:${userId}:${month}`; }
+async function showMonthEndReminder(userId: string, month: string) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const key = monthEndReminderKey(userId, month);
+  if (localStorage.getItem(key) === "sent") return;
+  const title = "Lembrete de pagamento";
+  const options: NotificationOptions = { body: `Confira e marque as contas pagas de ${month}.`, icon: "/icons/finance-wallet-192.png", badge: "/icons/finance-wallet-192.png", tag: `finance-month-end-${month}`, renotify: false };
+  try {
+    const registration = await navigator.serviceWorker?.ready;
+    if (registration?.showNotification) await registration.showNotification(title, options);
+    else new Notification(title, options);
+    localStorage.setItem(key, "sent");
+  } catch (error) {
+    console.warn("[Notificação] Não foi possível mostrar o lembrete:", error);
+  }
+}
 function hasSavedEntriesForMonth(payload: Record<string, unknown> | null, month: string) {
   if (!payload) return false;
   if (payload.currentMonth === month && Array.isArray(payload.entries) && payload.entries.length > 0) return true;
@@ -599,6 +615,22 @@ export default function Home() {
     const mascotTimer = window.setTimeout(() => setShowMascot(false), 8500);
     return () => window.clearTimeout(mascotTimer);
   }, [cloudLoaded]);
+  useEffect(() => {
+    if (!cloudLoaded || !reminderEnabled || !("Notification" in window)) return;
+    const checkMonthEnd = () => {
+      const userId = userIdRef.current;
+      if (!userId || Notification.permission !== "granted") return;
+      const now = new Date();
+      const month = calendarMonth();
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const [hour, minute] = reminderTime.split(":").map(Number);
+      const afterConfiguredTime = now.getHours() > hour || (now.getHours() === hour && now.getMinutes() >= minute);
+      if (now.getDate() >= Math.max(1, lastDay - 2) && afterConfiguredTime) void showMonthEndReminder(userId, month);
+    };
+    checkMonthEnd();
+    const timer = window.setInterval(checkMonthEnd, 60_000);
+    return () => window.clearInterval(timer);
+  }, [cloudLoaded, reminderEnabled, reminderTime]);
   // A abertura do app não troca o mês automaticamente. A troca automática
   // podia sobrescrever um mês arquivado ou uma recuperação local; o usuário
   // pode abrir o mês atual pelo botão "MÊS ATUAL".
@@ -871,7 +903,7 @@ export default function Home() {
       </main>
       {isSalaryPerson && <FinanceMascot leftover={leftover} activityKey={selectedExpenses} visible={showMascot} />}
       {showSalaryEditor && <div className="salary-editor-backdrop" role="presentation" onClick={() => setShowSalaryEditor(false)}><div className="salary-editor-modal" role="dialog" aria-modal="true" aria-labelledby="salary-editor-title" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR SALÁRIO</span><h2 id="salary-editor-title">Salário de {currentMonth}</h2><p>Altere o valor deste mês. O salário ficará salvo no histórico mensal do Supabase.</p><label className="field-label">VALOR DO SALÁRIO<input className="sheet-input" inputMode="decimal" autoFocus value={salaryDraft} onChange={(event) => setSalaryDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveSalary(); }} /></label><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowSalaryEditor(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveSalary}>Salvar salário</button></div></div></div>}
-      {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Usuário logado possui salário e sobra. Os demais perfis mostram apenas despesas e cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className="settings-row" key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} onChange={(event) => updateIndicator(key, event.target.checked)} /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><div className="palette-section"><span className="palette-title">PALETA DE CORES</span><p>Personalize o visual do sistema. As cores ficam salvas no Supabase.</p><div className="palette-preview" aria-label="Prévia do tema inteligente"><span style={{ background: palette.primary }} /><span style={{ background: palette.card }} /><span style={{ background: palette.background }} /><span style={{ background: palette.text }} /></div><p className="smart-palette-note">Uma única cor principal. O sistema combina automaticamente o fundo, os cartões e os textos para manter o contraste e a harmonia.</p><div className="palette-grid"><PalettePicker label="Cor principal do sistema" value={palette.primary} onChange={(value) => setPalette(smartPalette(value))} /></div><button type="button" className="palette-reset" onClick={() => setPalette(defaultPalette)}>Restaurar cores originais</button></div><button type="button" className="palette-reset backup-export-button" onClick={downloadJsonBackup}><Download size={15} /> Baixar backup JSON</button><small className="backup-note">Um backup local também é salvo automaticamente ao fechar ou colocar o app em segundo plano.</small><button type="button" className="settings-done" onClick={closeSettings}>Concluir</button></div></div>}
+      {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Usuário logado possui salário e sobra. Os demais perfis mostram apenas despesas e cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className="settings-row" key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} onChange={(event) => updateIndicator(key, event.target.checked)} /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><div className="reminder-section"><span className="palette-title">LEMBRETE DE CONTAS</span><p>Nos últimos 3 dias do mês, o aplicativo avisará para conferir e marcar as contas pagas.</p><div className="reminder-controls"><label className="field-label">HORÁRIO<input className="sheet-input" type="time" value={reminderTime} onChange={(event) => setReminderTime(event.target.value)} /></label><button type="button" className="palette-reset" onClick={() => { void toggleReminders(); }}>{reminderEnabled ? "Desativar lembrete" : "Ativar lembrete"}</button></div><small className="backup-note">É necessário permitir notificações neste navegador. O atalho PWA precisa ter sido aberto ao menos uma vez.</small></div><div className="palette-section"><span className="palette-title">PALETA DE CORES</span><p>Personalize o visual do sistema. As cores ficam salvas no Supabase.</p><div className="palette-preview" aria-label="Prévia do tema inteligente"><span style={{ background: palette.primary }} /><span style={{ background: palette.card }} /><span style={{ background: palette.background }} /><span style={{ background: palette.text }} /></div><p className="smart-palette-note">Uma única cor principal. O sistema combina automaticamente o fundo, os cartões e os textos para manter o contraste e a harmonia.</p><div className="palette-grid"><PalettePicker label="Cor principal do sistema" value={palette.primary} onChange={(value) => setPalette(smartPalette(value))} /></div><button type="button" className="palette-reset" onClick={() => setPalette(defaultPalette)}>Restaurar cores originais</button></div><button type="button" className="palette-reset backup-export-button" onClick={downloadJsonBackup}><Download size={15} /> Baixar backup JSON</button><small className="backup-note">Um backup local também é salvo automaticamente ao fechar ou colocar o app em segundo plano.</small><button type="button" className="settings-done" onClick={closeSettings}>Concluir</button></div></div>}
       {showNewMonthConfirm && <div className="month-modal-backdrop" role="presentation"><div className="month-modal" role="dialog" aria-modal="true" aria-labelledby="new-month-title"><span className="modal-kicker">ARQUIVAR MÊS</span><h2 id="new-month-title">Começar um novo mês?</h2><p>Os lançamentos de <strong>{currentMonth}</strong> serão salvos no histórico e a tela ficará pronta para {nextMonth(currentMonth)}.</p><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowNewMonthConfirm(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={() => { setShowNewMonthConfirm(false); startNewMonth(); }}>Começar novo mês</button></div></div></div>}
     </div>
   );
