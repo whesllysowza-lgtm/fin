@@ -243,7 +243,7 @@ async function showMonthEndReminder(userId: string, month: string) {
   const key = monthEndReminderKey(userId, month);
   if (localStorage.getItem(key) === "sent") return;
   const title = "Lembrete de pagamento";
-  const options: NotificationOptions = { body: `Confira e marque as contas pagas de ${month}.`, icon: "/icons/finance-wallet-192.png", badge: "/icons/finance-wallet-192.png", tag: `finance-month-end-${month}`, renotify: false };
+  const options: NotificationOptions = { body: `Confira e marque as contas pagas de ${month}.`, icon: "/icons/finance-wallet-192.png", badge: "/icons/finance-wallet-192.png", tag: `finance-month-end-${month}` };
   try {
     const registration = await navigator.serviceWorker?.ready;
     if (registration?.showNotification) await registration.showNotification(title, options);
