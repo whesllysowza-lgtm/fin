@@ -29,6 +29,9 @@ jobs:
 
       - name: Build web assets and sync Capacitor
         run: npm ci && npm run android:build
+        env:
+          VITE_SUPABASE_URL: https://wtljuwxyuamuhnhbfbgz.supabase.co
+          VITE_SUPABASE_KEY: sb_publishable_RVJ9KesmlCxCv8HTgtLWsA_PfZjG3qi
 
       - name: Build debug APK
         working-directory: android
