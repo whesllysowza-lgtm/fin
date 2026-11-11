@@ -224,6 +224,19 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
 }
 
 function calendarMonth() { const now = new Date(); return `${monthNames[now.getMonth()]} ${now.getFullYear()}`; }
+function reminderTarget(now: Date, selectedDay: number) {
+  let year = now.getFullYear();
+  let monthIndex = now.getMonth();
+  let lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  let day = Math.min(selectedDay, lastDay);
+  if (now.getDate() > day) {
+    monthIndex += 1;
+    if (monthIndex > 11) { monthIndex = 0; year += 1; }
+    lastDay = new Date(year, monthIndex + 1, 0).getDate();
+    day = Math.min(selectedDay, lastDay);
+  }
+  return { day, month: `${monthNames[monthIndex]} ${year}` };
+}
 function monthEndReminderKey(userId: string, month: string) { return `finance-month-end-reminder:${userId}:${month}`; }
 async function showMonthEndReminder(userId: string, month: string) {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
@@ -625,9 +638,8 @@ export default function Home() {
       const userId = userIdRef.current;
       if (!userId || Notification.permission !== "granted") return;
       const now = new Date();
-      const month = calendarMonth();
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      if (now.getDate() >= Math.min(reminderDay, lastDay)) void showMonthEndReminder(userId, month);
+      const target = reminderTarget(now, reminderDay);
+      if (target.month === calendarMonth() && now.getDate() === target.day) void showMonthEndReminder(userId, target.month);
     };
     checkMonthEnd();
     const timer = window.setInterval(checkMonthEnd, 60_000);
