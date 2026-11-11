@@ -893,6 +893,16 @@ export default function Home() {
     setTab("HISTÓRICO");
   };
 
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.userThemeActive = "true";
+    root.style.setProperty("--user-theme-primary", palette.primary);
+    return () => {
+      delete root.dataset.userThemeActive;
+      root.style.removeProperty("--user-theme-primary");
+    };
+  }, [palette.primary]);
+
   const dangerMode = isSalaryPerson && leftover <= 0;
   const activePalette = dangerMode ? dangerPalette : palette;
   const gradientAccent = dangerMode
