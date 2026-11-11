@@ -347,10 +347,10 @@ export default function Home() {
   }, [accountLabel]);
 
   useEffect(() => {
-    const iconPath = `/icons/${appIcon}.svg`;
+    const iconPath = `/icons/${appIcon}.svg?v=2`;
     document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.setAttribute("href", iconPath);
     document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')?.setAttribute("href", iconPath);
-    document.querySelector<HTMLLinkElement>('link[rel="manifest"]')?.setAttribute("href", `/manifests/${appIcon}.webmanifest`);
+    document.querySelector<HTMLLinkElement>('link[rel="manifest"]')?.setAttribute("href", `/manifests/${appIcon}.webmanifest?v=2`);
   }, [appIcon]);
   useEffect(() => {
     let active = true;
