@@ -1907,3 +1907,15 @@ html, body { background: linear-gradient(135deg, #e8f7ff 0%, #f8fcff 48%, #cfeef
 .settings-modal .toggle-track { width: 34px; height: 20px; padding: 3px; }
 .settings-modal .toggle-track span { width: 14px; height: 14px; }
 .settings-modal .settings-row input:checked + .toggle-track span { transform: translateX(14px); }
+.settings-modal .settings-row-expenses,
+.settings-modal .settings-row-leftover,
+.settings-modal .settings-row-card { min-height: 31px; padding: 0 8px; font-size: 10px; white-space: nowrap; }
+.settings-modal .settings-row-expenses .toggle-track,
+.settings-modal .settings-row-leftover .toggle-track,
+.settings-modal .settings-row-card .toggle-track { width: 29px; height: 17px; padding: 2px; }
+.settings-modal .settings-row-expenses .toggle-track span,
+.settings-modal .settings-row-leftover .toggle-track span,
+.settings-modal .settings-row-card .toggle-track span { width: 13px; height: 13px; }
+.settings-modal .settings-row-expenses input:checked + .toggle-track span,
+.settings-modal .settings-row-leftover input:checked + .toggle-track span,
+.settings-modal .settings-row-card input:checked + .toggle-track span { transform: translateX(12px); }
