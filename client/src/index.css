@@ -1923,7 +1923,10 @@ html, body { background: linear-gradient(135deg, #e8f7ff 0%, #f8fcff 48%, #cfeef
 .settings-modal .settings-row-leftover input:checked + .toggle-track span,
 .settings-modal .settings-row-card input:checked + .toggle-track span,
 .settings-modal .settings-row-salary input:checked + .toggle-track span { transform: translateX(12px); }
-.settings-modal .settings-list { display: flex; align-items: center; gap: 3px; padding: 3px; overflow-x: auto; }
-.settings-modal .settings-list .settings-row { flex: 0 0 auto; min-height: 27px; padding: 0 4px; gap: 4px; border-top: 0; border-left: 1px solid #edf3eb; }
+.settings-modal .settings-list { display: flex; align-items: center; justify-content: space-between; gap: 1px; padding: 2px; overflow: hidden; }
+.settings-modal .settings-list .settings-row { flex: 1 1 0; min-width: 0; min-height: 25px; padding: 0 2px; gap: 2px; border-top: 0; border-left: 1px solid #edf3eb; font-size: 8px; }
 .settings-modal .settings-list .settings-row:first-child { border-left: 0; }
 .settings-modal .settings-list .settings-row > span:first-child { white-space: nowrap; }
+.settings-modal .settings-list .settings-row .toggle-track { flex: 0 0 23px; width: 23px; height: 14px; padding: 2px; }
+.settings-modal .settings-list .settings-row .toggle-track span { width: 10px; height: 10px; }
+.settings-modal .settings-list .settings-row input:checked + .toggle-track span { transform: translateX(9px); }
