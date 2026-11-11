@@ -2074,3 +2074,28 @@ html, body { background: linear-gradient(135deg, #e8f7ff 0%, #f8fcff 48%, #cfeef
     display: none !important;
   }
 }
+
+
+/* Aproveita o espaço liberado no cabeçalho mobile para ícones mais fáceis de tocar. */
+@media (max-width: 720px) {
+  .sheet-app .top-actions {
+    gap: 5px;
+  }
+  .sheet-app .top-actions > .sync-now-button,
+  .sheet-app .top-actions > .bold-toggle,
+  .sheet-app .top-actions > .undo-button,
+  .sheet-app .top-actions > .top-icon {
+    display: grid;
+    place-items: center;
+    width: 38px !important;
+    min-width: 38px;
+    height: 38px !important;
+    min-height: 38px;
+    flex: 0 0 38px;
+    padding: 0 !important;
+  }
+  .sheet-app .top-actions > button > svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
