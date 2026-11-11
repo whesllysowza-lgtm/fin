@@ -13,8 +13,9 @@ type AppIcon = "finance-wallet" | "finance-chart" | "finance-coin" | "finance-pi
 const appIconOptions: { id: AppIcon; label: string }[] = [{ id: "finance-wallet", label: "Carteira" }, { id: "finance-chart", label: "Gráfico" }, { id: "finance-coin", label: "Moeda" }, { id: "finance-piggy", label: "Cofrinho" }];
 const emptyMonthlySummary = (): MonthlySummary => ({ salary: 0, expenses: 0, card: 0 });
 
-const defaultPalette: ThemePalette = { primary: "#2e6f25", background: "#f5f8f3", card: "#e4f5df", text: "#2f3c2d" };
+const defaultPalette: ThemePalette = { primary: "#38a9e8", background: "#f0f9ff", card: "#d9f1ff", text: "#12344d" };
 const dangerPalette: ThemePalette = { primary: "#b42318", background: "#fff5f4", card: "#fbe3e0", text: "#4a1713" };
+const legacyGreenPalette = new Set(["#2e6f25", "#397d2f", "#5da653", "#3d7732"]);
 function smartPalette(primary: string): ThemePalette {
   const { h, s } = hexToHsl(primary);
   const intensity = Math.max(0.28, Math.min(0.78, s || 0.45));
@@ -206,7 +207,10 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   if (payload.archivedData && typeof payload.archivedData === "object") setters.setArchivedData(payload.archivedData as Record<string, Entry[]>);
   if (payload.summaries && typeof payload.summaries === "object") setters.setSummaries(payload.summaries as Record<string, MonthlySummary>);
   if (payload.indicatorSettings && typeof payload.indicatorSettings === "object") setters.setIndicatorSettings(payload.indicatorSettings as Record<string, IndicatorSettings>);
-  if (payload.palette && typeof payload.palette === "object") setters.setPalette(smartPalette((payload.palette as Partial<ThemePalette>).primary || defaultPalette.primary));
+  if (payload.palette && typeof payload.palette === "object") {
+    const primary = ((payload.palette as Partial<ThemePalette>).primary || defaultPalette.primary).toLowerCase();
+    setters.setPalette(legacyGreenPalette.has(primary) ? defaultPalette : smartPalette(primary));
+  }
   if (typeof payload.currentMonth === "string") setters.setCurrentMonth(payload.currentMonth);
   if (typeof payload.alertEmail === "string") setters.setAlertEmail(payload.alertEmail);
   if (typeof payload.selectedPerson === "string") setters.setSelectedPerson(payload.selectedPerson);

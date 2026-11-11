@@ -1877,3 +1877,17 @@ html, body { background: #f8fafc; }
   font-size: .78rem;
   line-height: 1.35;
 }
+
+/* Tema azul-céu padrão: remove o verde legado da autenticação e dos fallbacks globais. */
+html, body { background: linear-gradient(135deg, #e8f7ff 0%, #f8fcff 48%, #cfeeff 100%) !important; }
+.auth-loading { color: #12344d !important; background: #f0f9ff !important; }
+.auth-screen { background: linear-gradient(145deg, #cfeeff 0%, #f8fcff 52%, #bde5fb 100%) !important; }
+.auth-card { border-color: #b7def3 !important; box-shadow: 0 24px 70px rgba(25, 105, 145, .18) !important; }
+.auth-logo, .auth-form button { background: #1888c7 !important; }
+.auth-card h1, .auth-form input { color: #12344d !important; }
+.auth-card > p { color: #5d7d92 !important; }
+.auth-form label, .auth-message, .auth-switch, .auth-forgot { color: #1476ad !important; }
+.auth-form input { border-color: #9fd2ed !important; background: #f0f9ff !important; }
+.auth-message { background: #d9f1ff !important; }
+.auth-form button:hover { background: #0f76ad !important; }
+.auth-back { color: #5d7d92 !important; }
