@@ -1332,18 +1332,12 @@ html, body { background: linear-gradient(135deg, #eaf6e5 0%, #f7fbf5 48%, #dcefd
 .sheet-app .welcome-strip.negative-balance .welcome-copy,
 .sheet-app .welcome-strip.negative-balance .welcome-copy span,
 .sheet-app .welcome-strip.negative-balance .welcome-copy strong,
-.sheet-app .welcome-strip.negative-balance .metric,
-.sheet-app .welcome-strip.negative-balance .metric span,
-.sheet-app .welcome-strip.negative-balance .metric strong,
 .sheet-app .welcome-strip.negative-balance .person-switcher {
   color: #b42318 !important;
 }
 .sheet-app .welcome-strip.negative-balance {
   border-color: color-mix(in srgb, #b42318 34%, var(--theme-background, #f5f8f3)) !important;
   background: linear-gradient(145deg, color-mix(in srgb, #b42318 12%, var(--theme-card, #e4f5df)), color-mix(in srgb, #b42318 4%, var(--theme-background, #f5f8f3))) !important;
-}
-.sheet-app .welcome-strip.negative-balance .metric {
-  border-color: color-mix(in srgb, #b42318 24%, transparent) !important;
 }
 .sheet-app .danger-action {
   background: linear-gradient(135deg, #b42318 0%, #d6453a 100%) !important;
@@ -2259,6 +2253,26 @@ html, body { background: linear-gradient(135deg, #e8f7ff 0%, #f8fcff 48%, #cfeef
 }
 .sheet-app .paid-expense-row.is-paid input[type="checkbox"] {
   accent-color: #16a34a;
+}
+.sheet-app .welcome-strip .metric.metric-tone-danger,
+.sheet-app .metric.metric-tone-danger {
+  border-color: color-mix(in srgb, #b42318 34%, var(--theme-background)) !important;
+}
+.sheet-app .welcome-strip .metric.metric-tone-danger > span,
+.sheet-app .welcome-strip .metric.metric-tone-danger > strong,
+.sheet-app .metric.metric-tone-danger > span,
+.sheet-app .metric.metric-tone-danger > strong {
+  color: #b42318 !important;
+}
+.sheet-app .welcome-strip .metric.metric-tone-positive,
+.sheet-app .metric.metric-tone-positive {
+  border-color: color-mix(in srgb, #15803d 34%, var(--theme-background)) !important;
+}
+.sheet-app .welcome-strip .metric.metric-tone-positive > span,
+.sheet-app .welcome-strip .metric.metric-tone-positive > strong,
+.sheet-app .metric.metric-tone-positive > span,
+.sheet-app .metric.metric-tone-positive > strong {
+  color: #15803d !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .sheet-app .paid-expense-row,
