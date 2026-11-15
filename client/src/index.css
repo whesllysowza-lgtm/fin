@@ -2197,6 +2197,33 @@ html, body { background: linear-gradient(135deg, #e8f7ff 0%, #f8fcff 48%, #cfeef
 .invoice-person-filter-status button:hover {
   background: var(--theme-card, #d9f1ff);
 }
+.sheet-app .paid-expense-row {
+  transition: background-color 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
+}
+.sheet-app .paid-expense-row .paid-expense-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  transition: color 220ms ease, gap 220ms ease;
+}
+.sheet-app .paid-expense-row .paid-expense-action::before {
+  content: "✓";
+  display: inline-grid;
+  width: 0;
+  height: 15px;
+  flex: 0 0 0;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(.65);
+  transition: width 220ms ease, flex-basis 220ms ease, opacity 180ms ease, transform 220ms ease, background-color 220ms ease, color 220ms ease;
+}
 .sheet-app .paid-expense-row:not(.is-paid) {
   background: color-mix(in srgb, #dc2626 5%, var(--theme-card)) !important;
   box-shadow: inset 3px 0 #c62828;
@@ -2227,12 +2254,18 @@ html, body { background: linear-gradient(135deg, #e8f7ff 0%, #f8fcff 48%, #cfeef
   border-radius: 50%;
   background: color-mix(in srgb, #16a34a 15%, var(--theme-card));
   color: #15803d;
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1;
+  opacity: 1;
+  transform: scale(1);
 }
 .sheet-app .paid-expense-row.is-paid input[type="checkbox"] {
   accent-color: #16a34a;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-app .paid-expense-row,
+  .sheet-app .paid-expense-row .paid-expense-action,
+  .sheet-app .paid-expense-row .paid-expense-action::before {
+    transition-duration: 0.01ms !important;
+  }
 }
 @media (max-width: 600px) {
   .invoice-person-filter-status {
