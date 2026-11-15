@@ -306,6 +306,27 @@ function applyCloudState(payload: Record<string, unknown> | null, setters: {
   if (typeof payload.appIcon === "string" && appIconOptions.some((option) => option.id === payload.appIcon)) setters.setAppIcon(payload.appIcon as AppIcon);
 }
 
+async function compareAndSaveFinanceState(userId: string, payload: AppSnapshot, expectedUpdatedAt: string | null) {
+  const previousTimestamp = expectedUpdatedAt ? Date.parse(expectedUpdatedAt) : 0;
+  const updatedAt = new Date(Math.max(Date.now(), Number.isFinite(previousTimestamp) ? previousTimestamp + 1 : 0)).toISOString();
+  if (expectedUpdatedAt) {
+    const { data, error } = await supabase.from("finance_state")
+      .update({ payload, updated_at: updatedAt })
+      .eq("user_id", userId)
+      .eq("updated_at", expectedUpdatedAt)
+      .select("user_id")
+      .maybeSingle();
+    return { updatedAt, error, conflict: !error && !data };
+  }
+
+  const { data, error } = await supabase.from("finance_state")
+    .insert({ id: userId, user_id: userId, payload, updated_at: updatedAt })
+    .select("user_id")
+    .maybeSingle();
+  if (error?.code === "23505") return { updatedAt, error: null, conflict: true };
+  return { updatedAt, error, conflict: !error && !data };
+}
+
 function calendarMonth() { const now = new Date(); return `${monthNames[now.getMonth()]} ${now.getFullYear()}`; }
 function reminderTarget(now: Date, selectedDay: number) {
   let year = now.getFullYear();
@@ -401,6 +422,8 @@ export default function Home() {
   const skipNextPersistRef = useRef(false);
   const hydratingRef = useRef(false);
   const latestSnapshotRef = useRef<AppSnapshot | null>(null);
+  const lastCloudUpdatedAtRef = useRef<number | null>(null);
+  const localDirtyRef = useRef(false);
   latestSnapshotRef.current = { boldText, appIcon, people, origins, expenses, hiddenExpensesByMonth, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime, reminderDay, billingCycleMigrationVersion: WESLY_FATURA_MIGRATION_VERSION };
 
   useEffect(() => {
@@ -449,6 +472,8 @@ export default function Home() {
       setAccountLabel(metadata?.full_name?.trim() || metadata?.name?.trim() || user.email || "usuário");
       const { data, error } = await supabase.from("finance_state").select("payload, updated_at").eq("user_id", user.id).maybeSingle();
       if (!active) return;
+      const loadedUpdatedAt = data?.updated_at ? Date.parse(data.updated_at) : null;
+      lastCloudUpdatedAtRef.current = loadedUpdatedAt !== null && Number.isFinite(loadedUpdatedAt) ? loadedUpdatedAt : null;
       const localDraftKey = `finance-state-draft:${user.id}`;
       let localDraft: Record<string, unknown> | null = null;
       try { localDraft = JSON.parse(localStorage.getItem(localDraftKey) || "null") as Record<string, unknown> | null; } catch { localDraft = null; }
@@ -493,6 +518,7 @@ export default function Home() {
     if (!cloudLoaded || cloudLoadError) return;
     if (hydratingRef.current) {
       hydratingRef.current = false;
+      skipNextPersistRef.current = false;
       return;
     }
     if (skipNextPersistRef.current) {
@@ -513,15 +539,18 @@ export default function Home() {
     if (!userId) return;
     const localDraftKey = `finance-state-draft:${userId}`;
     // Grava imediatamente um rascunho e uma cópia versionada antes de tocar no Supabase.
+    localDirtyRef.current = true;
     localStorage.setItem(localDraftKey, JSON.stringify(payload));
     localStorage.setItem(localDraftSavedAtKey(userId), String(Date.now()));
     saveLocalJsonBackup(userId, payload);
     notify("Salvando alteração...");
     if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current);
-    persistTimerRef.current = window.setTimeout(() => void (async () => {
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      void (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: remoteState, error: remoteReadError } = await supabase.from("finance_state").select("payload").eq("user_id", user.id).maybeSingle();
+      const { data: remoteState, error: remoteReadError } = await supabase.from("finance_state").select("payload, updated_at").eq("user_id", user.id).maybeSingle();
       if (remoteReadError) {
         console.warn("[Supabase] Não foi possível validar o estado remoto antes de salvar:", remoteReadError.message);
         notify("Não foi possível validar os dados antes de salvar. Tente novamente.");
@@ -533,23 +562,40 @@ export default function Home() {
         notify("Gravação bloqueada para proteger seus lançamentos. Atualize a página.");
         return;
       }
-      const { error } = await supabase.from("finance_state").upsert({ id: user.id, user_id: user.id, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-      if (error) {
-        console.warn("[Supabase] Não foi possível salvar o estado online:", error.message);
+      const expectedUpdatedAt = remoteState?.updated_at || null;
+      const expectedVersion = expectedUpdatedAt ? Date.parse(expectedUpdatedAt) : null;
+      if (expectedVersion !== lastCloudUpdatedAtRef.current) {
+        notify("Outra sessão atualizou a planilha. Seu rascunho local foi preservado para evitar sobrescrever dados.");
+        return;
+      }
+      const saveResult = await compareAndSaveFinanceState(user.id, payload, expectedUpdatedAt);
+      if (saveResult.error) {
+        console.warn("[Supabase] Não foi possível salvar o estado online:", saveResult.error.message);
         notify("Não foi possível salvar esta alteração. Tente novamente.");
         return;
       }
+      if (saveResult.conflict) {
+        notify("Outra sessão salvou uma alteração ao mesmo tempo. Seu rascunho local foi preservado.");
+        return;
+      }
+      lastCloudUpdatedAtRef.current = Date.parse(saveResult.updatedAt);
       const monthlyError = await saveMonthlySnapshots(user.id, payload);
       if (monthlyError) {
         console.warn("[Supabase] Estado principal salvo, mas o snapshot mensal falhou:", monthlyError.message);
         notify("Dados principais salvos; não foi possível criar a cópia mensal.");
         return;
       }
-      localStorage.removeItem(localDraftKey);
-      localStorage.removeItem(localDraftSavedAtKey(userId));
+      if (JSON.stringify(latestSnapshotRef.current) === JSON.stringify(payload)) {
+        localDirtyRef.current = false;
+        localStorage.removeItem(localDraftKey);
+        localStorage.removeItem(localDraftSavedAtKey(userId));
+      } else {
+        localDirtyRef.current = true;
+      }
       legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
       notify("Alteração salva no Supabase.");
-    })(), 350);
+      })();
+    }, 350);
     return () => { if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current); };
   }, [cloudLoaded, cloudLoadError, boldText, appIcon, people, origins, expenses, hiddenExpensesByMonth, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime, reminderDay]);
   const salaryPerson = people[0] || "";
@@ -589,23 +635,7 @@ export default function Home() {
   const invoiceTotal = useMemo(() => currentInvoiceEntries.reduce((sum, entry) => sum + entry.value, 0), [currentInvoiceEntries]);
   const selectedSalary = isSalaryPerson ? summary.salary : 0;
   const leftover = isSalaryPerson && selectedExpenses > 0 ? selectedSalary - selectedExpenses : 0;
-  const selectPerson = (name: string) => {
-    setSelectedPerson(name);
-    const userId = userIdRef.current;
-    if (!userId) return;
-    const payload: AppSnapshot = { boldText, appIcon, people, origins, expenses, hiddenExpensesByMonth, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson: name, reminderEnabled, reminderTime, reminderDay, billingCycleMigrationVersion: WESLY_FATURA_MIGRATION_VERSION };
-    const localDraftKey = `finance-state-draft:${userId}`;
-    localStorage.setItem(localDraftKey, JSON.stringify(payload));
-    void supabase.from("finance_state").upsert({ id: userId, user_id: userId, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).then(({ error }) => {
-      if (error) {
-        console.warn("[Supabase] Não foi possível salvar a pessoa selecionada:", error.message);
-        notify("Não foi possível salvar a pessoa selecionada.");
-      } else {
-        localStorage.removeItem(localDraftKey);
-        notify("Pessoa selecionada salva no Supabase.");
-      }
-    });
-  };
+  const selectPerson = (name: string) => setSelectedPerson(name);
 
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("pt-BR");
@@ -617,32 +647,118 @@ export default function Home() {
     setMessage(text);
     window.setTimeout(() => setMessage(""), 2400);
   };
+  useEffect(() => {
+    if (!cloudLoaded || cloudLoadError) return;
+    const userId = userIdRef.current;
+    if (!userId) return;
+    let active = true;
+    const localDraftKey = `finance-state-draft:${userId}`;
+
+    const applyRemoteRow = (row: Record<string, unknown> | null) => {
+      if (!active || !row || row.user_id !== userId) return;
+      const remoteUpdatedAt = typeof row.updated_at === "string" ? Date.parse(row.updated_at) : null;
+      const remotePayload = row.payload;
+      if (remoteUpdatedAt === null || !Number.isFinite(remoteUpdatedAt) || remoteUpdatedAt === lastCloudUpdatedAtRef.current) return;
+      if (!remotePayload || typeof remotePayload !== "object" || Array.isArray(remotePayload)) return;
+      if (localDirtyRef.current || persistTimerRef.current) {
+        notify("Outra sessão alterou a planilha; seu rascunho local foi preservado.");
+        return;
+      }
+      const remoteState = remotePayload as Record<string, unknown>;
+      const currentSnapshot = latestSnapshotRef.current;
+      if (currentSnapshot && hasAnyDetailedEntries(currentSnapshot as unknown as Record<string, unknown>) && !hasAnyDetailedEntries(remoteState)) {
+        notify("A sincronização foi pausada para proteger seus lançamentos locais.");
+        return;
+      }
+
+      if (persistTimerRef.current) {
+        window.clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+      localStorage.removeItem(localDraftKey);
+      localStorage.removeItem(localDraftSavedAtKey(userId));
+
+      const migration = migrateLegacyWeslyFaturaEntries(remoteState);
+      const appliedPayload = (migration.payload || remoteState) as Record<string, unknown>;
+      lastCloudUpdatedAtRef.current = remoteUpdatedAt;
+      if (JSON.stringify(latestSnapshotRef.current) === JSON.stringify(appliedPayload)) return;
+
+      localDirtyRef.current = false;
+      skipNextPersistRef.current = true;
+      lastSnapshotRef.current = appliedPayload as AppSnapshot;
+      undoSnapshotRef.current = null;
+      setCanUndo(false);
+      applyCloudState(appliedPayload, { setPeople, setOrigins, setExpenses, setHiddenExpensesByMonth, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime, setReminderDay, setBoldText, setAppIcon });
+      notify("Painel atualizado em tempo real.");
+    };
+
+    const channel = supabase
+      .channel(`finance-state-sync:${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "finance_state", filter: `user_id=eq.${userId}` }, (change) => {
+        if (change.eventType !== "DELETE") applyRemoteRow(change.new as Record<string, unknown> | null);
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void supabase.from("finance_state").select("user_id, payload, updated_at").eq("user_id", userId).maybeSingle().then(({ data, error }) => {
+            if (!active) return;
+            if (error) console.warn("[Supabase Realtime] Não foi possível conferir o estado mais recente:", error.message);
+            else if (data) applyRemoteRow(data as unknown as Record<string, unknown>);
+          });
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("[Supabase Realtime] Canal de sincronização indisponível:", status);
+        }
+      });
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [cloudLoaded, cloudLoadError]);
+
   const syncNow = async () => {
     const userId = userIdRef.current;
     const payload = latestSnapshotRef.current;
     if (!userId || !payload || isSyncing) return;
     setIsSyncing(true);
     const localDraftKey = `finance-state-draft:${userId}`;
+    localDirtyRef.current = true;
     localStorage.setItem(localDraftKey, JSON.stringify(payload));
     localStorage.setItem(localDraftSavedAtKey(userId), String(Date.now()));
     notify("Sincronizando com o Supabase...");
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user || user.id !== userId) throw new Error("Sessão não autenticada.");
-      const { data: remoteState, error: remoteReadError } = await supabase.from("finance_state").select("payload").eq("user_id", userId).maybeSingle();
+      const { data: remoteState, error: remoteReadError } = await supabase.from("finance_state").select("payload, updated_at").eq("user_id", userId).maybeSingle();
       if (remoteReadError) throw remoteReadError;
       const remotePayload = remoteState?.payload as Record<string, unknown> | null;
       if (hasAnyDetailedEntries(remotePayload) && !hasAnyDetailedEntries(payload)) {
         notify("Sincronização bloqueada para proteger seus lançamentos.");
         return;
       }
-      const { error } = await supabase.from("finance_state").upsert({ id: userId, user_id: userId, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-      if (error) throw error;
+      const expectedUpdatedAt = remoteState?.updated_at || null;
+      const expectedVersion = expectedUpdatedAt ? Date.parse(expectedUpdatedAt) : null;
+      if (expectedVersion !== lastCloudUpdatedAtRef.current) {
+        notify("Outra sessão atualizou a planilha. O rascunho local foi preservado para evitar sobrescrever dados.");
+        return;
+      }
+      const saveResult = await compareAndSaveFinanceState(userId, payload, expectedUpdatedAt);
+      if (saveResult.error) throw saveResult.error;
+      if (saveResult.conflict) {
+        notify("Outra sessão salvou uma alteração ao mesmo tempo. O rascunho local foi preservado.");
+        return;
+      }
+      lastCloudUpdatedAtRef.current = Date.parse(saveResult.updatedAt);
       const monthlyError = await saveMonthlySnapshots(userId, payload);
       if (monthlyError) throw monthlyError;
-      localStorage.removeItem(localDraftKey);
-      localStorage.removeItem(localDraftSavedAtKey(userId));
-      notify("Sincronização concluída no Supabase.");
+      if (JSON.stringify(latestSnapshotRef.current) === JSON.stringify(payload)) {
+        localDirtyRef.current = false;
+        localStorage.removeItem(localDraftKey);
+        localStorage.removeItem(localDraftSavedAtKey(userId));
+        notify("Sincronização concluída no Supabase.");
+      } else {
+        localDirtyRef.current = true;
+        notify("Uma edição mais recente continua salva no aparelho.");
+      }
     } catch (error) {
       console.warn("[Supabase] Sincronização manual falhou:", error);
       notify("Não foi possível sincronizar. O rascunho local foi preservado.");
@@ -885,15 +1001,35 @@ export default function Home() {
     if (userId) {
       const payload: AppSnapshot = { boldText, appIcon, people, origins, expenses, hiddenExpensesByMonth, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime, reminderDay, billingCycleMigrationVersion: WESLY_FATURA_MIGRATION_VERSION };
       const localDraftKey = `finance-state-draft:${userId}`;
+      localDirtyRef.current = true;
       localStorage.setItem(localDraftKey, JSON.stringify(payload));
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.id === userId) {
-        const { error } = await supabase.from("finance_state").upsert({ id: userId, user_id: userId, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-        if (!error) localStorage.removeItem(localDraftKey);
-        else {
-          console.warn("[Supabase] Não foi possível salvar antes do logout:", error.message);
+        const { data: remoteState, error: remoteReadError } = await supabase.from("finance_state").select("payload, updated_at").eq("user_id", userId).maybeSingle();
+        if (remoteReadError) {
+          console.warn("[Supabase] Não foi possível conferir os dados antes do logout:", remoteReadError.message);
           notify("Não foi possível salvar seus dados. Você continua conectado para tentar novamente.");
           return;
+        }
+        const expectedUpdatedAt = remoteState?.updated_at || null;
+        const expectedVersion = expectedUpdatedAt ? Date.parse(expectedUpdatedAt) : null;
+        if (expectedVersion !== lastCloudUpdatedAtRef.current) {
+          notify("Outra sessão atualizou a planilha. Seus dados foram preservados e você continua conectado.");
+          return;
+        }
+        const saveResult = await compareAndSaveFinanceState(userId, payload, expectedUpdatedAt);
+        if (saveResult.error || saveResult.conflict) {
+          console.warn("[Supabase] Não foi possível salvar antes do logout:", saveResult.error?.message || "conflito de versão");
+          notify("Não foi possível salvar seus dados. Você continua conectado para tentar novamente.");
+          return;
+        }
+        lastCloudUpdatedAtRef.current = Date.parse(saveResult.updatedAt);
+        if (JSON.stringify(latestSnapshotRef.current) === JSON.stringify(payload)) {
+          localDirtyRef.current = false;
+          localStorage.removeItem(localDraftKey);
+          localStorage.removeItem(localDraftSavedAtKey(userId));
+        } else {
+          localDirtyRef.current = true;
         }
       }
     }
