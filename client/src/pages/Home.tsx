@@ -1218,7 +1218,29 @@ function ExpenseListView({ month, salary, entries, weslyInvoiceEntries, selected
   };
   const paidTotal = expenses.reduce((sum, expense) => isPaidExpense(paidExpenses, month, expense) ? sum + expenseTotalFor(expense) : sum, 0);
   const remainingSalary = salary - paidTotal;
-  return <section className="categories-view"><div className="section-title"><span>LISTA DESPESAS</span><h1>Controle de despesas</h1><p>Marcações de pagamento exclusivas de {month}. Trocar o mês mostra uma lista independente.</p></div><div className="list-salary-summary"><span>SALÁRIO PARA ORGANIZAÇÃO</span><strong>{brl.format(remainingSalary)}</strong><small>Este valor diminui conforme você marca despesas. O salário do PAINEL não é alterado.</small></div><div className="paid-expenses-list"><div className="paid-expenses-heading"><span>DESPESAS CADASTRADAS</span><p>Os nomes vêm da aba Categorias.</p></div>{expenses.length === 0 ? <small className="quick-choices-empty">Adicione despesas na aba Categorias.</small> : expenses.map((expense) => { const paid = isPaidExpense(paidExpenses, month, expense); const expenseTotal = expenseTotalFor(expense); return <label className={`paid-expense-row ${paid ? "is-paid" : ""}`} key={expense}><input type="checkbox" checked={paid} onChange={() => onTogglePaid(expense)} aria-label={`${paid ? "Desmarcar" : "Marcar"} ${expense} como já pago em ${month}`} /><span className="paid-expense-action">{paid ? "Já foi pago" : "Marcar como pago"}</span><span className="paid-expense-name">{expense}</span><strong>{brl.format(expenseTotal)}</strong></label>; })}</div></section>;
+  return (
+    <section className="categories-view">
+      <div className="section-title"><h1>Controle de despesas</h1></div>
+      <div className="list-salary-summary">
+        <span>SALÁRIO PARA ORGANIZAÇÃO</span>
+        <strong>{brl.format(remainingSalary)}</strong>
+      </div>
+      <div className="paid-expenses-list">
+        {expenses.map((expense) => {
+          const paid = isPaidExpense(paidExpenses, month, expense);
+          const expenseTotal = expenseTotalFor(expense);
+          return (
+            <label className={`paid-expense-row ${paid ? "is-paid" : ""}`} key={expense}>
+              <input type="checkbox" checked={paid} onChange={() => onTogglePaid(expense)} aria-label={`${paid ? "Desmarcar" : "Marcar"} ${expense} como já pago em ${month}`} />
+              <span className="paid-expense-action">{paid ? "Pago" : "Pendente"}</span>
+              <span className="paid-expense-name">{expense}</span>
+              <strong>{brl.format(expenseTotal)}</strong>
+            </label>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 function Category({ title, kind, items, hiddenItems = [], onRename, onAdd, onRemove }: { title: string; kind: "people" | "origins" | "expenses"; items: string[]; hiddenItems?: string[]; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
   const [newName, setNewName] = useState("");
