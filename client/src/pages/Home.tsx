@@ -7,7 +7,8 @@ import { BarChart3, ChevronDown, CirclePlus, ClipboardList, History, Home as Hom
 type Entry = { id: number; person: string; origin: string; expense: string; value: number; purchaseDate?: string };
 type InvoiceEntry = Entry & { sourceMonth: string };
 type HistoryRowEntry = Entry & { sourceMonth?: string };
-type ExpenseForm = { person: string; origin: string; expense: string; value: string };
+type ExpenseForm = { person: string; origin: string; expense: string; value: string; purchaseDate: string };
+type PendingSyncConflict = { localPayload: Record<string, unknown>; remotePayload: Record<string, unknown> | null; remoteUpdatedAt: string | null };
 type MonthlySummary = { salary: number; expenses: number; card: number };
 type IndicatorKey = "salary" | "expenses" | "leftover" | "card";
 type IndicatorSettings = Record<IndicatorKey, boolean>;
@@ -33,11 +34,19 @@ type AppSnapshot = { boldText: boolean; appIcon: AppIcon; people: string[]; orig
  reminderTime: string; reminderDay: number };
 
 const localBackupKey = (userId: string) => `finance-json-backups:${userId}`;
+const localBackupResolvedKey = (userId: string) => `finance-json-backup-resolved:${userId}`;
 const localDraftSavedAtKey = (userId: string) => `finance-state-draft-saved-at:${userId}`;
 function saveLocalJsonBackup(userId: string, snapshot: AppSnapshot) {
+  if (!isSnapshotComplete(snapshot as unknown as Record<string, unknown>)) return;
   try {
     const key = localBackupKey(userId);
-    const previous = JSON.parse(localStorage.getItem(key) || "[]") as Array<{ savedAt: string; snapshot: AppSnapshot }>;
+    let previous: Array<{ savedAt: string; snapshot: AppSnapshot }> = [];
+    try {
+      const stored = JSON.parse(localStorage.getItem(key) || "[]");
+      if (Array.isArray(stored)) previous = stored;
+    } catch {
+      previous = [];
+    }
     const next = [{ savedAt: new Date().toISOString(), snapshot }, ...previous].slice(0, 12);
     localStorage.setItem(key, JSON.stringify(next));
   } catch (error) {
@@ -45,7 +54,43 @@ function saveLocalJsonBackup(userId: string, snapshot: AppSnapshot) {
   }
 }
 
-async function saveMonthlySnapshots(userId: string, snapshot: AppSnapshot) {
+async function saveMonthlySnapshotRow(row: Record<string, unknown>): Promise<{ written: boolean; error: Error | null }> {
+  const userId = String(row.user_id);
+  const month = String(row.month);
+  const sourceUpdatedAt = String(row.source_updated_at);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data: current, error: readError } = await supabase.from("finance_month_snapshots")
+      .select("payload, source_updated_at")
+      .eq("user_id", userId)
+      .eq("month", month)
+      .maybeSingle();
+    if (readError) return { written: false, error: new Error(readError.message) };
+
+    if (!current) {
+      const { error: insertError } = await supabase.from("finance_month_snapshots").insert(row);
+      if (!insertError) return { written: true, error: null };
+      if (insertError.code === "23505") continue;
+      return { written: false, error: new Error(insertError.message) };
+    }
+
+    const currentVersion = typeof current.source_updated_at === "string" ? current.source_updated_at : null;
+    const versionOrder = currentVersion ? compareTimestamps(currentVersion, sourceUpdatedAt) : -1;
+    if (versionOrder !== null && versionOrder > 0) return { written: false, error: null };
+    if (versionOrder === 0 && sameSnapshot(current.payload, row.payload)) return { written: false, error: null };
+
+    let updateQuery = supabase.from("finance_month_snapshots")
+      .update({ payload: row.payload, source_updated_at: sourceUpdatedAt })
+      .eq("user_id", userId)
+      .eq("month", month);
+    updateQuery = currentVersion ? updateQuery.eq("source_updated_at", currentVersion) : updateQuery.is("source_updated_at", null);
+    const { data: updated, error: updateError } = await updateQuery.select("source_updated_at").maybeSingle();
+    if (updateError) return { written: false, error: new Error(updateError.message) };
+    if (updated) return { written: true, error: null };
+  }
+  return { written: false, error: new Error(`O snapshot de ${month} mudou repetidamente; tente sincronizar novamente.`) };
+}
+
+async function saveMonthlySnapshots(userId: string, snapshot: AppSnapshot, sourceUpdatedAt: string) {
   const months = Array.from(new Set([
     snapshot.currentMonth,
     ...Object.keys(snapshot.summaries),
@@ -72,13 +117,16 @@ async function saveMonthlySnapshots(userId: string, snapshot: AppSnapshot) {
       appIcon: snapshot.appIcon,
     },
     updated_at: new Date().toISOString(),
+    source_updated_at: sourceUpdatedAt,
   }));
   if (!rows.length) return null;
-  const { error } = await supabase.from("finance_month_snapshots").upsert(rows, { onConflict: "user_id,month" });
-  if (error) return error;
-  const historyRows = rows.map(({ updated_at, ...row }) => ({ ...row, source_updated_at: updated_at }));
+  const results = await Promise.all(rows.map((row) => saveMonthlySnapshotRow(row)));
+  const failedResult = results.find((result) => result.error);
+  if (failedResult?.error) return failedResult.error;
+  const historyRows = rows.filter((_, index) => results[index].written).map(({ updated_at: _updatedAt, ...row }) => row);
+  if (!historyRows.length) return null;
   const { error: historyError } = await supabase.from("finance_month_snapshot_history").insert(historyRows);
-  return historyError;
+  return historyError ? new Error(historyError.message) : null;
 }
 
 const initialEntries: Entry[] = [
@@ -134,17 +182,29 @@ function isInvoiceExpense(value: string) {
   return ["FATURA", "FUTURA"].includes(normalizedLabel(value));
 }
 const WESLY_CARD_CLOSING_DAY = 6;
-const WESLY_FATURA_MIGRATION_VERSION = 1;
+const WESLY_FATURA_MIGRATION_VERSION = 2;
 const WESLY_FATURA_MIGRATION_FROM = "Novembro 2026";
 const WESLY_FATURA_MIGRATION_TO = "Dezembro 2026";
 function isWeslyFaturaEntry(person: string, origin: string, expense: string) {
-  return normalizedLabel(person) === "WESLY" && isCardOrigin(origin) && normalizedLabel(expense) === "FATURA";
+  return normalizedLabel(person) === "WESLY" && isCardOrigin(origin) && isInvoiceExpense(expense);
 }
 function entryFingerprint(entry: Entry) {
   return JSON.stringify([entry.id, normalizedLabel(entry.person), normalizedLabel(entry.origin), normalizedLabel(entry.expense), entry.value, entry.purchaseDate || ""]);
 }
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object).filter((key) => object[key] !== undefined).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(object[key])}`).join(",")}}`;
+  }
+  const encoded = JSON.stringify(value);
+  return encoded === undefined ? "null" : encoded;
+}
+function sameSnapshot(left: unknown, right: unknown) {
+  return stableStringify(left) === stableStringify(right);
+}
 function emptyRegistrationForm(): ExpenseForm {
-  return { person: "", origin: "", expense: "", value: "" };
+  return { person: "", origin: "", expense: "", value: "", purchaseDate: localDateInputValue() };
 }
 function localDateInputValue() {
   const now = new Date();
@@ -171,32 +231,42 @@ function migrateLegacyWeslyFaturaEntries(payload: Record<string, unknown>) {
   if (Number(payload.billingCycleMigrationVersion) >= WESLY_FATURA_MIGRATION_VERSION) return { payload, changed: false, moved: 0 };
   const fromMonth = WESLY_FATURA_MIGRATION_FROM;
   const toMonth = WESLY_FATURA_MIGRATION_TO;
+  const previousVersion = Number(payload.billingCycleMigrationVersion) || 0;
   const oldCurrentMonth = typeof payload.currentMonth === "string" ? payload.currentMonth : calendarMonth();
   const entries = Array.isArray(payload.entries) ? [...payload.entries as Entry[]] : [];
   const archivedSource = payload.archivedData;
   const archivedData: Record<string, Entry[]> = archivedSource && typeof archivedSource === "object" && !Array.isArray(archivedSource)
     ? Object.fromEntries(Object.entries(archivedSource as Record<string, unknown>).filter(([, rows]) => Array.isArray(rows)) as Array<[string, Entry[]]>)
     : {};
-  const sourceRows = oldCurrentMonth === fromMonth ? entries : (archivedData[fromMonth] || []);
-  const targetRows = oldCurrentMonth === toMonth ? entries : (archivedData[toMonth] || []);
-  const movingRows = sourceRows.filter((entry) => isWeslyFaturaEntry(entry.person, entry.origin, entry.expense));
-  const sourceRemaining = sourceRows.filter((entry) => !isWeslyFaturaEntry(entry.person, entry.origin, entry.expense));
-  const entryFingerprint = (entry: Entry) => JSON.stringify([entry.id, normalizedLabel(entry.person), normalizedLabel(entry.origin), normalizedLabel(entry.expense), entry.value, entry.purchaseDate || ""]);
-  const targetFingerprints = new Set(targetRows.map(entryFingerprint));
-  const targetUpdated = [...targetRows, ...movingRows.filter((entry) => !targetFingerprints.has(entryFingerprint(entry)))];
+  const rowsForMonth = (month: string) => month === oldCurrentMonth ? entries : (archivedData[month] || []);
+  const rowsByMonth = new Map<string, Entry[]>([[fromMonth, [...rowsForMonth(fromMonth)]], [toMonth, [...rowsForMonth(toMonth)]]]);
+  const affectedMonths = new Set<string>([fromMonth, toMonth]);
+  let moved = 0;
+  for (const sourceMonth of [fromMonth, toMonth]) {
+    const sourceRows = rowsByMonth.get(sourceMonth) || [];
+    for (const entry of [...sourceRows]) {
+      if (!isWeslyFaturaEntry(entry.person, entry.origin, entry.expense)) continue;
+      const dateBasedMonth = entry.purchaseDate ? invoiceMonthForCardDate(entry.purchaseDate) : null;
+      // Version 1 moved undated November rows to December. Keep that legacy behavior
+      // for never-migrated snapshots, but do not guess the purchase date in v2.
+      const destinationMonth = dateBasedMonth || (previousVersion < 1 && sourceMonth === fromMonth ? toMonth : sourceMonth);
+      if (destinationMonth === sourceMonth) continue;
+      const fingerprint = entryFingerprint(entry);
+      const currentSourceRows = rowsByMonth.get(sourceMonth) || [];
+      rowsByMonth.set(sourceMonth, currentSourceRows.filter((candidate) => entryFingerprint(candidate) !== fingerprint));
+      const destinationRows = rowsByMonth.get(destinationMonth) || [...rowsForMonth(destinationMonth)];
+      if (!destinationRows.some((candidate) => entryFingerprint(candidate) === fingerprint)) {
+        rowsByMonth.set(destinationMonth, [...destinationRows, entry]);
+        moved += 1;
+      }
+      affectedMonths.add(sourceMonth);
+      affectedMonths.add(destinationMonth);
+    }
+  }
   let currentMonth = oldCurrentMonth;
-  let nextEntries = entries;
-  if (oldCurrentMonth === fromMonth) nextEntries = sourceRemaining;
-  else archivedData[fromMonth] = sourceRemaining;
-  if (oldCurrentMonth === toMonth) nextEntries = targetUpdated;
-  else archivedData[toMonth] = targetUpdated;
   if (oldCurrentMonth === toMonth && calendarMonth() === fromMonth) {
-    archivedData[toMonth] = targetUpdated;
-    nextEntries = sourceRemaining;
     currentMonth = fromMonth;
   }
-  if (currentMonth === fromMonth) delete archivedData[fromMonth];
-  if (currentMonth === toMonth) delete archivedData[toMonth];
   const summaries = payload.summaries && typeof payload.summaries === "object" && !Array.isArray(payload.summaries)
     ? { ...(payload.summaries as Record<string, MonthlySummary>) }
     : {};
@@ -204,13 +274,22 @@ function migrateLegacyWeslyFaturaEntries(payload: Record<string, unknown>) {
     const previous = summaries[month] || emptyMonthlySummary();
     summaries[month] = { ...previous, expenses: rows.reduce((sum, entry) => sum + entry.value, 0), card: rows.filter((entry) => isCardOrigin(entry.origin)).reduce((sum, entry) => sum + entry.value, 0) };
   };
-  updateSummary(fromMonth, sourceRemaining);
-  updateSummary(toMonth, targetUpdated);
-  const archivedMonths = Array.from(new Set([...(Array.isArray(payload.archivedMonths) ? payload.archivedMonths as string[] : []), fromMonth, toMonth].filter((month) => month !== currentMonth)));
+  const archivedMonthSet = new Set(Array.isArray(payload.archivedMonths) ? payload.archivedMonths as string[] : []);
+  for (const month of Array.from(affectedMonths)) {
+    const monthRows = rowsByMonth.get(month) || [...rowsForMonth(month)];
+    updateSummary(month, monthRows);
+    if (month === currentMonth) delete archivedData[month];
+    else {
+      archivedData[month] = monthRows;
+      archivedMonthSet.add(month);
+    }
+  }
+  const archivedMonths = Array.from(archivedMonthSet).filter((month) => month !== currentMonth);
+  const nextEntries = affectedMonths.has(currentMonth) ? (rowsByMonth.get(currentMonth) || []) : entries;
   return {
     payload: { ...payload, currentMonth, entries: nextEntries, archivedData, archivedMonths, summaries, billingCycleMigrationVersion: WESLY_FATURA_MIGRATION_VERSION },
     changed: true,
-    moved: movingRows.length,
+    moved,
   };
 }
 function isSimpleOrigin(value: string) {
@@ -242,22 +321,24 @@ function hslToHex(h: number, s: number, l: number) {
 }
 
 function readLegacyState(): Record<string, unknown> | null {
-  try {
-    const value = {
-      people: JSON.parse(localStorage.getItem("wesly-people") || "null"),
-      origins: JSON.parse(localStorage.getItem("wesly-origins") || "null"),
-      expenses: JSON.parse(localStorage.getItem("wesly-expenses") || "null"),
-      currentMonth: localStorage.getItem("wesly-current-month"),
-      archivedMonths: JSON.parse(localStorage.getItem("wesly-archived-months") || "null"),
-      archivedData: JSON.parse(localStorage.getItem("wesly-archived-data") || "null"),
-      entries: JSON.parse(localStorage.getItem("wesly-current-entries") || "null"),
-      summaries: JSON.parse(localStorage.getItem("wesly-monthly-summaries") || "null"),
-      indicatorSettings: JSON.parse(localStorage.getItem("wesly-indicator-settings") || "null"),
-    };
-    return Object.values(value).some((item) => item !== null) ? value : null;
-  } catch {
-    return null;
-  }
+  const readText = (key: string) => {
+    try { return localStorage.getItem(key); } catch { return null; }
+  };
+  const readJson = (key: string) => {
+    try { return JSON.parse(readText(key) || "null"); } catch { return null; }
+  };
+  const value = {
+    people: readJson("wesly-people"),
+    origins: readJson("wesly-origins"),
+    expenses: readJson("wesly-expenses"),
+    currentMonth: readText("wesly-current-month"),
+    archivedMonths: readJson("wesly-archived-months"),
+    archivedData: readJson("wesly-archived-data"),
+    entries: readJson("wesly-current-entries"),
+    summaries: readJson("wesly-monthly-summaries"),
+    indicatorSettings: readJson("wesly-indicator-settings"),
+  };
+  return Object.values(value).some((item) => item !== null) ? value : null;
 }
 
 function applyCloudState(payload: Record<string, unknown> | null, setters: {
@@ -314,17 +395,29 @@ async function compareAndSaveFinanceState(userId: string, payload: AppSnapshot, 
       .update({ payload, updated_at: updatedAt })
       .eq("user_id", userId)
       .eq("updated_at", expectedUpdatedAt)
-      .select("user_id")
+      .select("updated_at")
       .maybeSingle();
-    return { updatedAt, error, conflict: !error && !data };
+    return { updatedAt: data?.updated_at || updatedAt, error, conflict: !error && !data };
   }
 
   const { data, error } = await supabase.from("finance_state")
     .insert({ id: userId, user_id: userId, payload, updated_at: updatedAt })
-    .select("user_id")
+    .select("updated_at")
     .maybeSingle();
   if (error?.code === "23505") return { updatedAt, error: null, conflict: true };
-  return { updatedAt, error, conflict: !error && !data };
+  return { updatedAt: data?.updated_at || updatedAt, error, conflict: !error && !data };
+}
+
+function compareTimestamps(left: string, right: string) {
+  const leftMs = Date.parse(left), rightMs = Date.parse(right);
+  if (!Number.isFinite(leftMs) || !Number.isFinite(rightMs)) return null;
+  if (leftMs !== rightMs) return leftMs < rightMs ? -1 : 1;
+  const subMillisecond = (value: string) => {
+    const fraction = value.match(/\.(\d+)(?=Z|[+-]\d{2}:?\d{2}$)/i)?.[1] || "";
+    return Number(fraction.padEnd(6, "0").slice(3, 6) || 0);
+  };
+  const leftRemainder = subMillisecond(left), rightRemainder = subMillisecond(right);
+  return leftRemainder === rightRemainder ? 0 : leftRemainder < rightRemainder ? -1 : 1;
 }
 
 function calendarMonth() { const now = new Date(); return `${monthNames[now.getMonth()]} ${now.getFullYear()}`; }
@@ -357,19 +450,80 @@ async function showMonthEndReminder(userId: string, month: string) {
     console.warn("[Notificação] Não foi possível mostrar o lembrete:", error);
   }
 }
-function hasSavedEntriesForMonth(payload: Record<string, unknown> | null, month: string) {
-  if (!payload) return false;
-  if (payload.currentMonth === month && Array.isArray(payload.entries) && payload.entries.length > 0) return true;
-  const archivedData = payload.archivedData;
-  if (!archivedData || typeof archivedData !== "object" || Array.isArray(archivedData)) return false;
-  const monthEntries = (archivedData as Record<string, unknown>)[month];
-  return Array.isArray(monthEntries) && monthEntries.length > 0;
-}
 function hasAnyDetailedEntries(payload: Record<string, unknown> | null) {
   if (!payload) return false;
   if (Array.isArray(payload.entries) && payload.entries.length > 0) return true;
   const archivedData = payload.archivedData;
   return Boolean(archivedData && typeof archivedData === "object" && !Array.isArray(archivedData) && Object.values(archivedData as Record<string, unknown>).some((value) => Array.isArray(value) && value.length > 0));
+}
+function hasRecoverableSnapshotData(payload: Record<string, unknown> | null) {
+  if (!payload) return false;
+  if (hasAnyDetailedEntries(payload)) return true;
+  if (["people", "origins", "expenses", "archivedMonths"].some((key) => Array.isArray(payload[key]) && (payload[key] as unknown[]).length > 0)) return true;
+  const summaries = isSnapshotRecord(payload.summaries) ? Object.values(payload.summaries) : [];
+  if (summaries.some((summary) => isSnapshotRecord(summary) && [summary.salary, summary.expenses, summary.card].some((value) => typeof value === "number" && Number.isFinite(value) && value !== 0))) return true;
+  if (["hiddenExpensesByMonth", "paidExpenses"].some((key) => isSnapshotRecord(payload[key]) && Object.keys(payload[key] as Record<string, unknown>).length > 0)) return true;
+  const customSettings = isSnapshotRecord(payload.indicatorSettings) && !sameSnapshot(payload.indicatorSettings, defaultIndicatorSettings);
+  const customPalette = isSnapshotRecord(payload.palette) && !sameSnapshot(payload.palette, defaultPalette);
+  return Boolean(customSettings || customPalette || payload.alertEmail || payload.reminderEnabled || payload.boldText || (payload.appIcon && payload.appIcon !== "finance-wallet") || payload.selectedPerson);
+}
+function hasUnreflectedLocalEntries(localPayload: Record<string, unknown>, remotePayload: Record<string, unknown>) {
+  const fingerprints = (payload: Record<string, unknown>) => {
+    const current = Array.isArray(payload.entries) ? payload.entries as Entry[] : [];
+    const archived = payload.archivedData && typeof payload.archivedData === "object" && !Array.isArray(payload.archivedData)
+      ? Object.values(payload.archivedData as Record<string, unknown>).flatMap((rows) => Array.isArray(rows) ? rows as Entry[] : [])
+      : [];
+    return new Set([...current, ...archived].filter((entry) => entry && typeof entry === "object" && typeof entry.id === "number" && typeof entry.person === "string" && typeof entry.origin === "string" && typeof entry.expense === "string" && typeof entry.value === "number").map(entryFingerprint));
+  };
+  const remoteFingerprints = fingerprints(remotePayload);
+  return Array.from(fingerprints(localPayload)).some((fingerprint) => !remoteFingerprints.has(fingerprint));
+}
+function isSnapshotRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+function isSnapshotComplete(value: Record<string, unknown>) {
+  return ["people", "origins", "expenses", "entries", "archivedMonths"].every((key) => Array.isArray(value[key]))
+    && ["archivedData", "summaries", "hiddenExpensesByMonth", "paidExpenses", "indicatorSettings", "palette"].every((key) => isSnapshotRecord(value[key]))
+    && ["appIcon", "currentMonth", "alertEmail", "selectedPerson", "reminderTime"].every((key) => typeof value[key] === "string")
+    && typeof value.boldText === "boolean" && typeof value.reminderEnabled === "boolean" && Number.isFinite(value.reminderDay);
+}
+function mergeSnapshotWithFallback(fallback: Record<string, unknown>, recent: Record<string, unknown>) {
+  const merged: Record<string, unknown> = { ...fallback, ...recent };
+  for (const key of ["people", "origins", "expenses", "entries", "archivedMonths"]) {
+    const previous = fallback[key], current = recent[key];
+    if (Array.isArray(previous) && previous.length > 0 && Array.isArray(current) && current.length === 0) merged[key] = previous;
+  }
+  for (const key of ["archivedData", "summaries", "hiddenExpensesByMonth", "paidExpenses", "indicatorSettings", "palette"]) {
+    const previous = fallback[key], current = recent[key];
+    if (!isSnapshotRecord(previous) || !isSnapshotRecord(current)) continue;
+    const combined: Record<string, unknown> = { ...previous, ...current };
+    for (const [nestedKey, nestedValue] of Object.entries(current)) {
+      const previousNested = previous[nestedKey];
+      if (isSnapshotRecord(previousNested) && isSnapshotRecord(nestedValue)) combined[nestedKey] = { ...previousNested, ...nestedValue };
+      else if (Array.isArray(previousNested) && previousNested.length > 0 && Array.isArray(nestedValue) && nestedValue.length === 0) combined[nestedKey] = previousNested;
+    }
+    merged[key] = combined;
+  }
+  return merged;
+}
+function readNewestLocalJsonBackup(userId: string): { snapshot: Record<string, unknown>; savedAt: number } | null {
+  try {
+    const backups = JSON.parse(localStorage.getItem(localBackupKey(userId)) || "[]") as Array<{ savedAt?: string; snapshot?: unknown }>;
+    if (!Array.isArray(backups)) return null;
+    const candidates = backups
+      .filter((item) => isSnapshotRecord(item?.snapshot))
+      .map((item) => ({ snapshot: item.snapshot as Record<string, unknown>, savedAt: Date.parse(item.savedAt || "") }))
+      .filter((item) => Number.isFinite(item.savedAt))
+      .sort((left, right) => right.savedAt - left.savedAt);
+    const newest = candidates[0];
+    if (!newest || isSnapshotComplete(newest.snapshot)) return newest || null;
+    const newestComplete = candidates.find((item) => isSnapshotComplete(item.snapshot));
+    if (!newestComplete) return newest;
+    const snapshot = mergeSnapshotWithFallback(newestComplete.snapshot, newest.snapshot);
+    return { snapshot, savedAt: newest.savedAt };
+  } catch {
+    return null;
+  }
 }
 function nextMonth(label: string) {
   const [month, yearText] = label.split(" ");
@@ -411,6 +565,9 @@ export default function Home() {
   const [accountLabel, setAccountLabel] = useState("usuário");
   const [cloudLoaded, setCloudLoaded] = useState(false);
   const [cloudLoadError, setCloudLoadError] = useState("");
+  const [legacyRecoveryPayload, setLegacyRecoveryPayload] = useState<Record<string, unknown> | null>(null);
+  const [legacyRecoveryError, setLegacyRecoveryError] = useState("");
+  const [syncConflict, setSyncConflict] = useState<PendingSyncConflict | null>(null);
   const [showMascot, setShowMascot] = useState(true);
   const [canUndo, setCanUndo] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -422,8 +579,11 @@ export default function Home() {
   const skipNextPersistRef = useRef(false);
   const hydratingRef = useRef(false);
   const latestSnapshotRef = useRef<AppSnapshot | null>(null);
-  const lastCloudUpdatedAtRef = useRef<number | null>(null);
+  const lastCloudUpdatedAtRef = useRef<string | null>(null);
+  const syncConflictRefreshSequenceRef = useRef(0);
   const localDirtyRef = useRef(false);
+  const pendingSyncConflictRef = useRef<PendingSyncConflict | null>(null);
+  const legacyImportPendingRef = useRef(false);
   latestSnapshotRef.current = { boldText, appIcon, people, origins, expenses, hiddenExpensesByMonth, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime, reminderDay, billingCycleMigrationVersion: WESLY_FATURA_MIGRATION_VERSION };
 
   useEffect(() => {
@@ -472,42 +632,136 @@ export default function Home() {
       setAccountLabel(metadata?.full_name?.trim() || metadata?.name?.trim() || user.email || "usuário");
       const { data, error } = await supabase.from("finance_state").select("payload, updated_at").eq("user_id", user.id).maybeSingle();
       if (!active) return;
-      const loadedUpdatedAt = data?.updated_at ? Date.parse(data.updated_at) : null;
-      lastCloudUpdatedAtRef.current = loadedUpdatedAt !== null && Number.isFinite(loadedUpdatedAt) ? loadedUpdatedAt : null;
+      if (error) {
+        console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
+        const localDraftKey = `finance-state-draft:${user.id}`;
+        let localRecovery: Record<string, unknown> | null = null;
+        try { localRecovery = JSON.parse(localStorage.getItem(localDraftKey) || "null") as Record<string, unknown> | null; } catch { localRecovery = null; }
+        if (!isSnapshotRecord(localRecovery)) localRecovery = null;
+        const localBackup = readNewestLocalJsonBackup(user.id);
+        if (!localRecovery) localRecovery = localBackup?.snapshot || null;
+        else if (localBackup) {
+          const draftSavedAt = Number(localStorage.getItem(localDraftSavedAtKey(user.id)) || 0);
+          const draftIsComplete = isSnapshotComplete(localRecovery);
+          const backupIsComplete = isSnapshotComplete(localBackup.snapshot);
+          const backupIsNewer = localBackup.savedAt > draftSavedAt;
+          if (!draftIsComplete) {
+            saveLocalJsonBackup(user.id, localRecovery as unknown as AppSnapshot);
+            localRecovery = backupIsComplete && backupIsNewer ? localBackup.snapshot : mergeSnapshotWithFallback(localBackup.snapshot, localRecovery);
+          } else if (backupIsComplete && backupIsNewer && !sameSnapshot(localBackup.snapshot, localRecovery)) {
+            saveLocalJsonBackup(user.id, localRecovery as unknown as AppSnapshot);
+            localRecovery = localBackup.snapshot;
+          }
+        }
+        if (localRecovery) {
+          const migration = migrateLegacyWeslyFaturaEntries(localRecovery);
+          localStorage.setItem(localDraftKey, JSON.stringify(migration.payload));
+          localStorage.setItem(localDraftSavedAtKey(user.id), String(Date.now()));
+          lastCloudUpdatedAtRef.current = null;
+          localDirtyRef.current = true;
+          hydratingRef.current = false;
+          skipNextPersistRef.current = false;
+          applyPayloadToState(migration.payload as Record<string, unknown>);
+          setCloudLoadError("");
+          setCloudLoaded(true);
+          notify("Dados locais carregados. O backup do aparelho foi preservado; a nuvem será conferida antes de sincronizar.");
+          return;
+        }
+        const legacyState = readLegacyState();
+        if (legacyState) {
+          setLegacyRecoveryPayload(legacyState);
+          setLegacyRecoveryError("");
+          return;
+        }
+        setCloudLoadError("Não foi possível carregar seus dados salvos nem encontrar uma cópia local. Tente novamente quando houver conexão.");
+        setCloudLoaded(true);
+        return;
+      }
+      const loadedUpdatedAt = typeof data?.updated_at === "string" && Number.isFinite(Date.parse(data.updated_at)) ? data.updated_at : null;
+      lastCloudUpdatedAtRef.current = loadedUpdatedAt;
       const localDraftKey = `finance-state-draft:${user.id}`;
       let localDraft: Record<string, unknown> | null = null;
       try { localDraft = JSON.parse(localStorage.getItem(localDraftKey) || "null") as Record<string, unknown> | null; } catch { localDraft = null; }
-      const cloudState = data?.payload as Record<string, unknown> | null;
-      const localDraftSavedAt = Number(localStorage.getItem(localDraftSavedAtKey(user.id)) || 0);
-      // O estado online continua sendo a fonte principal. Exceção segura:
-      // se o rascunho individual ainda tiver lançamentos de Outubro e o
-      // estado online estiver sem eles, recuperamos o rascunho local em vez
-      // de aceitar silenciosamente um mês vazio.
-      const recoverOctoberFromDraft = hasSavedEntriesForMonth(localDraft, "Outubro 2026") && !hasSavedEntriesForMonth(cloudState, "Outubro 2026");
-      const cloudUpdatedAt = data?.updated_at ? Date.parse(data.updated_at) : 0;
-      const recoverNewerLocalDraft = Boolean(localDraft && localDraftSavedAt > cloudUpdatedAt);
-      const recoveredPayload = (recoverOctoberFromDraft || recoverNewerLocalDraft ? localDraft : (cloudState || localDraft)) as Record<string, unknown> | null;
-      const migration = recoveredPayload ? migrateLegacyWeslyFaturaEntries(recoveredPayload) : { payload: null, changed: false, moved: 0 };
-      const cloudPayload = migration.payload as Record<string, unknown> | null;
-      if (recoverOctoberFromDraft) notify("Encontramos uma cópia local de Outubro e vamos recuperá-la.");
-      else if (recoverNewerLocalDraft) notify("Encontramos uma alteração local mais recente e vamos sincronizá-la.");
-      if (migration.moved > 0) notify(`${migration.moved} lançamento(s) de FATURA de Wesly foram movidos de ${WESLY_FATURA_MIGRATION_FROM} para ${WESLY_FATURA_MIGRATION_TO}.`);
-      if (error) {
-        console.warn("[Supabase] Não foi possível ler o estado online:", error.message);
-        setCloudLoadError("Não foi possível carregar seus dados salvos. Tente atualizar a página.");
+      if (!isSnapshotRecord(localDraft)) localDraft = null;
+      const rawCloudState = data?.payload;
+      const cloudState = rawCloudState && typeof rawCloudState === "object" && !Array.isArray(rawCloudState) && Object.keys(rawCloudState).length > 0
+        ? rawCloudState as Record<string, unknown>
+        : null;
+      const localDraftNormalized = localDraft ? migrateLegacyWeslyFaturaEntries(localDraft).payload : null;
+      const cloudStateNormalized = cloudState ? migrateLegacyWeslyFaturaEntries(cloudState).payload : null;
+      const localDraftMatchesCloud = Boolean(localDraft && cloudStateNormalized && sameSnapshot(localDraftNormalized, cloudStateNormalized));
+      if (localDraftMatchesCloud) {
+        localStorage.removeItem(localDraftKey);
+        localStorage.removeItem(localDraftSavedAtKey(user.id));
+        localDraft = null;
+      }
+      let recoveredFromBackup = false;
+      const backupResolutionMatchesCloud = Boolean(rawCloudState && typeof rawCloudState === "object" && !Array.isArray(rawCloudState) && localStorage.getItem(localBackupResolvedKey(user.id)) === stableStringify(rawCloudState));
+      const localBackup = !backupResolutionMatchesCloud ? readNewestLocalJsonBackup(user.id) : null;
+      const draftSavedAt = Number(localStorage.getItem(localDraftSavedAtKey(user.id)) || 0);
+      const backupDiffersFromCloud = Boolean(localBackup && cloudStateNormalized && !sameSnapshot(migrateLegacyWeslyFaturaEntries(localBackup.snapshot).payload, cloudStateNormalized));
+      const legacyStateWithoutCloud = !cloudState && !localDraft ? readLegacyState() : null;
+      if (legacyStateWithoutCloud && !hasRecoverableSnapshotData(localBackup?.snapshot || null)) {
+        setLegacyRecoveryPayload(legacyStateWithoutCloud);
+        setLegacyRecoveryError("");
+        return;
+      }
+      if (localBackup && !localDraft && (!cloudState || backupDiffersFromCloud)) {
+        localDraft = localBackup.snapshot;
+        recoveredFromBackup = true;
+        localStorage.setItem(localDraftKey, JSON.stringify(localDraft));
+        localStorage.setItem(localDraftSavedAtKey(user.id), String(Date.now()));
+      } else if (localBackup && localDraft) {
+        const backupIsNewer = localBackup.savedAt > draftSavedAt;
+        if (!isSnapshotComplete(localDraft)) {
+          saveLocalJsonBackup(user.id, localDraft as unknown as AppSnapshot);
+          localDraft = isSnapshotComplete(localBackup.snapshot) && backupIsNewer ? localBackup.snapshot : mergeSnapshotWithFallback(localBackup.snapshot, localDraft);
+          recoveredFromBackup = true;
+          localStorage.setItem(localDraftKey, JSON.stringify(localDraft));
+          localStorage.setItem(localDraftSavedAtKey(user.id), String(Date.now()));
+        } else if (isSnapshotComplete(localBackup.snapshot) && backupIsNewer && !sameSnapshot(localBackup.snapshot, localDraft)) {
+          saveLocalJsonBackup(user.id, localDraft as unknown as AppSnapshot);
+          localDraft = localBackup.snapshot;
+          recoveredFromBackup = true;
+          localStorage.setItem(localDraftKey, JSON.stringify(localDraft));
+          localStorage.setItem(localDraftSavedAtKey(user.id), String(Date.now()));
+        }
+      }
+      if (!cloudState && !localDraft) {
+        const legacyState = readLegacyState();
+        if (legacyState) {
+          setLegacyRecoveryPayload(legacyState);
+          setLegacyRecoveryError("");
+          return;
+        }
+      }
+      if (localDraft && cloudStateNormalized && sameSnapshot(migrateLegacyWeslyFaturaEntries(localDraft).payload, cloudStateNormalized)) {
+        localStorage.removeItem(localDraftKey);
+        localStorage.removeItem(localDraftSavedAtKey(user.id));
+        localDraft = null;
+        recoveredFromBackup = false;
+      }
+      const hasSyncConflict = Boolean(localDraft && cloudState);
+      const sourcePayload = (cloudState || localDraft) as Record<string, unknown> | null;
+      if (!sourcePayload) {
         setCloudLoaded(true);
         return;
-      } else if (cloudPayload && Object.keys(cloudPayload).length > 0) {
-        // Uma recuperação do rascunho precisa voltar ao Supabase; os demais
-        // carregamentos continuam sem disparar uma gravação redundante.
-        skipNextPersistRef.current = !(recoverOctoberFromDraft || recoverNewerLocalDraft || migration.changed);
-        hydratingRef.current = !(recoverOctoberFromDraft || recoverNewerLocalDraft || migration.changed);
-        applyCloudState(cloudPayload, { setPeople, setOrigins, setExpenses, setHiddenExpensesByMonth, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime, setReminderDay, setBoldText, setAppIcon });
-        const localBold = localStorage.getItem(`finance-bold:${user.id}`);
-        if (localBold !== null) setBoldText(localBold === "true");
-        const savedIcon = cloudPayload.appIcon;
-        if (typeof savedIcon === "string" && appIconOptions.some((option) => option.id === savedIcon)) localStorage.setItem(`finance-app-icon:${user.id}`, savedIcon);
       }
+      const migration = migrateLegacyWeslyFaturaEntries(sourcePayload);
+      const cloudPayload = migration.payload as Record<string, unknown>;
+      if (hasSyncConflict && localDraft) {
+        queueSyncConflict({ localPayload: localDraft, remotePayload: cloudPayload, remoteUpdatedAt: loadedUpdatedAt });
+      } else if (!cloudState && localDraft) {
+        notify(recoveredFromBackup ? "Backup local recuperado; será sincronizado novamente na nuvem." : "Rascunho deste usuário recuperado do aparelho; será salvo novamente na nuvem.");
+      }
+      if (migration.moved > 0) notify(`${migration.moved} lançamento(s) de FATURA de Wesly foram reclassificados pela data da compra.`);
+      hydratingRef.current = !(!hasSyncConflict && (!cloudState || migration.changed));
+      skipNextPersistRef.current = false;
+      applyPayloadToState(cloudPayload);
+      const localBold = localStorage.getItem(`finance-bold:${user.id}`);
+      if (localBold !== null) setBoldText(localBold === "true");
+      const savedIcon = cloudPayload.appIcon;
+      if (typeof savedIcon === "string" && appIconOptions.some((option) => option.id === savedIcon)) localStorage.setItem(`finance-app-icon:${user.id}`, savedIcon);
       setCloudLoaded(true);
     };
     void loadCloudState();
@@ -525,6 +779,7 @@ export default function Home() {
       skipNextPersistRef.current = false;
       return;
     }
+    if (pendingSyncConflictRef.current) return;
     const payload: AppSnapshot = { boldText, appIcon, people, origins, expenses, hiddenExpensesByMonth, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime, reminderDay, billingCycleMigrationVersion: WESLY_FATURA_MIGRATION_VERSION };
     if (skipHistoryRef.current) {
       skipHistoryRef.current = false;
@@ -563,10 +818,12 @@ export default function Home() {
         return;
       }
       const expectedUpdatedAt = remoteState?.updated_at || null;
-      const expectedVersion = expectedUpdatedAt ? Date.parse(expectedUpdatedAt) : null;
-      if (expectedVersion !== lastCloudUpdatedAtRef.current) {
-        notify("Outra sessão atualizou a planilha. Seu rascunho local foi preservado para evitar sobrescrever dados.");
-        return;
+      if (expectedUpdatedAt !== lastCloudUpdatedAtRef.current) {
+        if (remotePayload && sameSnapshot(remotePayload, payload)) lastCloudUpdatedAtRef.current = expectedUpdatedAt;
+        else {
+          await refreshSyncConflict(user.id, payload as unknown as Record<string, unknown>);
+          return;
+        }
       }
       const saveResult = await compareAndSaveFinanceState(user.id, payload, expectedUpdatedAt);
       if (saveResult.error) {
@@ -575,29 +832,32 @@ export default function Home() {
         return;
       }
       if (saveResult.conflict) {
-        notify("Outra sessão salvou uma alteração ao mesmo tempo. Seu rascunho local foi preservado.");
+        await refreshSyncConflict(user.id, payload as unknown as Record<string, unknown>);
         return;
       }
-      lastCloudUpdatedAtRef.current = Date.parse(saveResult.updatedAt);
-      const monthlyError = await saveMonthlySnapshots(user.id, payload);
+      lastCloudUpdatedAtRef.current = saveResult.updatedAt;
+      const monthlyError = await saveMonthlySnapshots(user.id, payload, saveResult.updatedAt);
       if (monthlyError) {
         console.warn("[Supabase] Estado principal salvo, mas o snapshot mensal falhou:", monthlyError.message);
         notify("Dados principais salvos; não foi possível criar a cópia mensal.");
         return;
       }
-      if (JSON.stringify(latestSnapshotRef.current) === JSON.stringify(payload)) {
+      if (sameSnapshot(latestSnapshotRef.current, payload)) {
         localDirtyRef.current = false;
         localStorage.removeItem(localDraftKey);
         localStorage.removeItem(localDraftSavedAtKey(userId));
       } else {
         localDirtyRef.current = true;
       }
-      legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
+      if (legacyImportPendingRef.current) {
+        legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
+        legacyImportPendingRef.current = false;
+      }
       notify("Alteração salva no Supabase.");
       })();
     }, 350);
     return () => { if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current); };
-  }, [cloudLoaded, cloudLoadError, boldText, appIcon, people, origins, expenses, hiddenExpensesByMonth, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime, reminderDay]);
+  }, [cloudLoaded, cloudLoadError, boldText, appIcon, people, origins, expenses, hiddenExpensesByMonth, paidExpenses, entries, archivedMonths, archivedData, summaries, indicatorSettings, palette, currentMonth, alertEmail, selectedPerson, reminderEnabled, reminderTime, reminderDay, syncConflict]);
   const salaryPerson = people[0] || "";
   const isSalaryPerson = Boolean(selectedPerson) && selectedPerson === salaryPerson;
   const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
@@ -616,7 +876,10 @@ export default function Home() {
       const fingerprint = entryFingerprint(entry);
       if (!uniqueRows.has(fingerprint)) uniqueRows.set(fingerprint, { ...entry, sourceMonth: weslyCurrentInvoiceMonth });
     }
-    return Array.from(uniqueRows.values()).filter((entry) => isCardOrigin(entry.origin) && normalizedLabel(entry.expense) === "FATURA");
+    return Array.from(uniqueRows.values()).filter((entry) => {
+      const dateBasedMonth = normalizedLabel(entry.person) === "WESLY" && entry.purchaseDate ? invoiceMonthForCardDate(entry.purchaseDate) : null;
+      return isCardOrigin(entry.origin) && isInvoiceExpense(entry.expense) && (dateBasedMonth ? dateBasedMonth === weslyCurrentInvoiceMonth : entry.sourceMonth === weslyCurrentInvoiceMonth);
+    });
   }, [currentCalendarMonth, weslyCurrentInvoiceMonth, currentMonth, entries, archivedData]);
   const weslyInvoiceEntries = useMemo(() => currentInvoiceEntries.filter((entry) => normalizedLabel(entry.person) === "WESLY"), [currentInvoiceEntries]);
   const selectedExpenses = useMemo(() => {
@@ -647,6 +910,59 @@ export default function Home() {
     setMessage(text);
     window.setTimeout(() => setMessage(""), 2400);
   };
+  const applyPayloadToState = (payload: Record<string, unknown>) => applyCloudState(payload, { setPeople, setOrigins, setExpenses, setHiddenExpensesByMonth, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime, setReminderDay, setBoldText, setAppIcon });
+  const queueSyncConflict = (conflict: PendingSyncConflict, allowCurrentDeletion = false) => {
+    const existing = pendingSyncConflictRef.current;
+    if (existing?.remoteUpdatedAt) {
+      if (!conflict.remoteUpdatedAt && !allowCurrentDeletion) return;
+      if (conflict.remoteUpdatedAt) {
+        const order = compareTimestamps(conflict.remoteUpdatedAt, existing.remoteUpdatedAt);
+        if (order !== null && order < 0) return;
+      }
+    }
+    const localPayload = conflict.localPayload;
+    const nextConflict = { ...conflict, localPayload };
+    pendingSyncConflictRef.current = nextConflict;
+    setSyncConflict(nextConflict);
+    if (persistTimerRef.current) {
+      window.clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    localDirtyRef.current = true;
+    const userId = userIdRef.current;
+    if (userId) {
+      localStorage.setItem(`finance-state-draft:${userId}`, JSON.stringify(localPayload));
+      localStorage.setItem(localDraftSavedAtKey(userId), String(Date.now()));
+      saveLocalJsonBackup(userId, localPayload as unknown as AppSnapshot);
+    }
+    notify("Detectamos duas versões diferentes. Sua cópia local foi preservada; escolha qual manter.");
+  };
+  const refreshSyncConflict = async (userId: string, localPayload: Record<string, unknown>) => {
+    const refreshSequence = ++syncConflictRefreshSequenceRef.current;
+    const { data, error } = await supabase.from("finance_state").select("payload, updated_at").eq("user_id", userId).maybeSingle();
+    if (refreshSequence !== syncConflictRefreshSequenceRef.current || userIdRef.current !== userId) return;
+    if (error) {
+      console.warn("[Supabase] Não foi possível reler a versão concorrente:", error.message);
+      notify("Conflito detectado. O rascunho foi mantido neste aparelho; tente sincronizar novamente.");
+      return;
+    }
+    const remotePayload = data?.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload as Record<string, unknown> : null;
+    const remoteUpdatedAt = typeof data?.updated_at === "string" ? data.updated_at : null;
+    const currentLocalPayload = (latestSnapshotRef.current as unknown as Record<string, unknown> | null) || localPayload;
+    if (remotePayload && sameSnapshot(remotePayload, currentLocalPayload)) {
+      lastCloudUpdatedAtRef.current = remoteUpdatedAt;
+      localDirtyRef.current = false;
+      localStorage.removeItem(`finance-state-draft:${userId}`);
+      localStorage.removeItem(localDraftSavedAtKey(userId));
+      if (pendingSyncConflictRef.current) {
+        pendingSyncConflictRef.current = null;
+        setSyncConflict(null);
+      }
+      notify("A outra sessão já salvou as mesmas alterações.");
+      return;
+    }
+    queueSyncConflict({ localPayload: currentLocalPayload, remotePayload, remoteUpdatedAt }, true);
+  };
   useEffect(() => {
     if (!cloudLoaded || cloudLoadError) return;
     const userId = userIdRef.current;
@@ -656,24 +972,34 @@ export default function Home() {
 
     const applyRemoteRow = (row: Record<string, unknown> | null) => {
       if (!active || !row || row.user_id !== userId) return;
-      const remoteUpdatedAt = typeof row.updated_at === "string" ? Date.parse(row.updated_at) : null;
+      const remoteUpdatedAt = typeof row.updated_at === "string" && Number.isFinite(Date.parse(row.updated_at)) ? row.updated_at : null;
       const remotePayload = row.payload;
-      if (remoteUpdatedAt === null || !Number.isFinite(remoteUpdatedAt) || remoteUpdatedAt === lastCloudUpdatedAtRef.current) return;
+      if (remoteUpdatedAt === null) return;
       if (!remotePayload || typeof remotePayload !== "object" || Array.isArray(remotePayload)) return;
-      if (localDirtyRef.current || persistTimerRef.current) {
-        notify("Outra sessão alterou a planilha; seu rascunho local foi preservado.");
-        return;
-      }
+      const versionOrder = lastCloudUpdatedAtRef.current ? compareTimestamps(remoteUpdatedAt, lastCloudUpdatedAtRef.current) : 1;
+      if (versionOrder !== null && versionOrder <= 0) return;
+      syncConflictRefreshSequenceRef.current += 1;
       const remoteState = remotePayload as Record<string, unknown>;
       const currentSnapshot = latestSnapshotRef.current;
-      if (currentSnapshot && hasAnyDetailedEntries(currentSnapshot as unknown as Record<string, unknown>) && !hasAnyDetailedEntries(remoteState)) {
-        notify("A sincronização foi pausada para proteger seus lançamentos locais.");
+      if (currentSnapshot && sameSnapshot(currentSnapshot, remoteState)) {
+        lastCloudUpdatedAtRef.current = remoteUpdatedAt;
+        localDirtyRef.current = false;
+        localStorage.removeItem(localDraftKey);
+        localStorage.removeItem(localDraftSavedAtKey(userId));
+        if (pendingSyncConflictRef.current) {
+          pendingSyncConflictRef.current = null;
+          setSyncConflict(null);
+        }
         return;
       }
-
-      if (persistTimerRef.current) {
-        window.clearTimeout(persistTimerRef.current);
-        persistTimerRef.current = null;
+      if (currentSnapshot && hasAnyDetailedEntries(currentSnapshot as unknown as Record<string, unknown>) && !hasAnyDetailedEntries(remoteState)) {
+        queueSyncConflict({ localPayload: currentSnapshot as unknown as Record<string, unknown>, remotePayload: remoteState, remoteUpdatedAt });
+        return;
+      }
+      if (pendingSyncConflictRef.current || localDirtyRef.current || persistTimerRef.current) {
+        const localConflictPayload = (currentSnapshot as unknown as Record<string, unknown> | null) || pendingSyncConflictRef.current?.localPayload || remoteState;
+        queueSyncConflict({ localPayload: localConflictPayload, remotePayload: remoteState, remoteUpdatedAt });
+        return;
       }
       localStorage.removeItem(localDraftKey);
       localStorage.removeItem(localDraftSavedAtKey(userId));
@@ -681,21 +1007,26 @@ export default function Home() {
       const migration = migrateLegacyWeslyFaturaEntries(remoteState);
       const appliedPayload = (migration.payload || remoteState) as Record<string, unknown>;
       lastCloudUpdatedAtRef.current = remoteUpdatedAt;
-      if (JSON.stringify(latestSnapshotRef.current) === JSON.stringify(appliedPayload)) return;
+      if (sameSnapshot(latestSnapshotRef.current, appliedPayload)) return;
 
       localDirtyRef.current = false;
-      skipNextPersistRef.current = true;
+      skipNextPersistRef.current = !migration.changed;
       lastSnapshotRef.current = appliedPayload as AppSnapshot;
       undoSnapshotRef.current = null;
       setCanUndo(false);
-      applyCloudState(appliedPayload, { setPeople, setOrigins, setExpenses, setHiddenExpensesByMonth, setPaidExpenses, setEntries, setArchivedMonths, setArchivedData, setSummaries, setIndicatorSettings, setPalette, setCurrentMonth, setAlertEmail, setSelectedPerson, setReminderEnabled, setReminderTime, setReminderDay, setBoldText, setAppIcon });
+      applyPayloadToState(appliedPayload);
       notify("Painel atualizado em tempo real.");
     };
 
     const channel = supabase
       .channel(`finance-state-sync:${userId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "finance_state", filter: `user_id=eq.${userId}` }, (change) => {
-        if (change.eventType !== "DELETE") applyRemoteRow(change.new as Record<string, unknown> | null);
+        if (change.eventType === "DELETE") {
+          const localPayload = latestSnapshotRef.current as unknown as Record<string, unknown> | null;
+          if (localPayload) void refreshSyncConflict(userId, localPayload);
+          return;
+        }
+        applyRemoteRow(change.new as Record<string, unknown> | null);
       })
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
@@ -719,6 +1050,10 @@ export default function Home() {
     const userId = userIdRef.current;
     const payload = latestSnapshotRef.current;
     if (!userId || !payload || isSyncing) return;
+    if (pendingSyncConflictRef.current) {
+      notify("Escolha qual versão manter antes de sincronizar.");
+      return;
+    }
     setIsSyncing(true);
     const localDraftKey = `finance-state-draft:${userId}`;
     localDirtyRef.current = true;
@@ -736,21 +1071,23 @@ export default function Home() {
         return;
       }
       const expectedUpdatedAt = remoteState?.updated_at || null;
-      const expectedVersion = expectedUpdatedAt ? Date.parse(expectedUpdatedAt) : null;
-      if (expectedVersion !== lastCloudUpdatedAtRef.current) {
-        notify("Outra sessão atualizou a planilha. O rascunho local foi preservado para evitar sobrescrever dados.");
-        return;
+      if (expectedUpdatedAt !== lastCloudUpdatedAtRef.current) {
+        if (remotePayload && sameSnapshot(remotePayload, payload)) lastCloudUpdatedAtRef.current = expectedUpdatedAt;
+        else {
+          await refreshSyncConflict(userId, payload as unknown as Record<string, unknown>);
+          return;
+        }
       }
       const saveResult = await compareAndSaveFinanceState(userId, payload, expectedUpdatedAt);
       if (saveResult.error) throw saveResult.error;
       if (saveResult.conflict) {
-        notify("Outra sessão salvou uma alteração ao mesmo tempo. O rascunho local foi preservado.");
+        await refreshSyncConflict(userId, payload as unknown as Record<string, unknown>);
         return;
       }
-      lastCloudUpdatedAtRef.current = Date.parse(saveResult.updatedAt);
-      const monthlyError = await saveMonthlySnapshots(userId, payload);
+      lastCloudUpdatedAtRef.current = saveResult.updatedAt;
+      const monthlyError = await saveMonthlySnapshots(userId, payload, saveResult.updatedAt);
       if (monthlyError) throw monthlyError;
-      if (JSON.stringify(latestSnapshotRef.current) === JSON.stringify(payload)) {
+      if (sameSnapshot(latestSnapshotRef.current, payload)) {
         localDirtyRef.current = false;
         localStorage.removeItem(localDraftKey);
         localStorage.removeItem(localDraftSavedAtKey(userId));
@@ -758,6 +1095,10 @@ export default function Home() {
       } else {
         localDirtyRef.current = true;
         notify("Uma edição mais recente continua salva no aparelho.");
+      }
+      if (legacyImportPendingRef.current && sameSnapshot(latestSnapshotRef.current, payload)) {
+        legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
+        legacyImportPendingRef.current = false;
       }
     } catch (error) {
       console.warn("[Supabase] Sincronização manual falhou:", error);
@@ -981,6 +1322,15 @@ export default function Home() {
     setCanUndo(false);
     lastSnapshotRef.current = null;
     undoSnapshotRef.current = null;
+    localDirtyRef.current = false;
+    lastCloudUpdatedAtRef.current = null;
+    syncConflictRefreshSequenceRef.current += 1;
+    pendingSyncConflictRef.current = null;
+    legacyImportPendingRef.current = false;
+    setSyncConflict(null);
+    setLegacyRecoveryPayload(null);
+    setLegacyRecoveryError("");
+    setCloudLoadError("");
   };
   const downloadJsonBackup = () => {
     const userId = userIdRef.current;
@@ -996,6 +1346,10 @@ export default function Home() {
     notify("Backup JSON salvo no aparelho.");
   };
   const handleSignOut = async () => {
+    if (pendingSyncConflictRef.current) {
+      notify("Resolva o conflito entre as versões antes de sair.");
+      return;
+    }
     const userId = userIdRef.current;
     if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current);
     if (userId) {
@@ -1012,19 +1366,26 @@ export default function Home() {
           return;
         }
         const expectedUpdatedAt = remoteState?.updated_at || null;
-        const expectedVersion = expectedUpdatedAt ? Date.parse(expectedUpdatedAt) : null;
-        if (expectedVersion !== lastCloudUpdatedAtRef.current) {
-          notify("Outra sessão atualizou a planilha. Seus dados foram preservados e você continua conectado.");
-          return;
+        if (expectedUpdatedAt !== lastCloudUpdatedAtRef.current) {
+          const localPayload = payload as unknown as Record<string, unknown>;
+          if (remoteState?.payload && sameSnapshot(remoteState.payload, payload)) lastCloudUpdatedAtRef.current = expectedUpdatedAt;
+          else {
+            await refreshSyncConflict(userId, localPayload);
+            return;
+          }
         }
         const saveResult = await compareAndSaveFinanceState(userId, payload, expectedUpdatedAt);
-        if (saveResult.error || saveResult.conflict) {
-          console.warn("[Supabase] Não foi possível salvar antes do logout:", saveResult.error?.message || "conflito de versão");
+        if (saveResult.error) {
+          console.warn("[Supabase] Não foi possível salvar antes do logout:", saveResult.error.message);
           notify("Não foi possível salvar seus dados. Você continua conectado para tentar novamente.");
           return;
         }
-        lastCloudUpdatedAtRef.current = Date.parse(saveResult.updatedAt);
-        if (JSON.stringify(latestSnapshotRef.current) === JSON.stringify(payload)) {
+        if (saveResult.conflict) {
+          await refreshSyncConflict(userId, payload as unknown as Record<string, unknown>);
+          return;
+        }
+        lastCloudUpdatedAtRef.current = saveResult.updatedAt;
+        if (sameSnapshot(latestSnapshotRef.current, payload)) {
           localDirtyRef.current = false;
           localStorage.removeItem(localDraftKey);
           localStorage.removeItem(localDraftSavedAtKey(userId));
@@ -1035,8 +1396,74 @@ export default function Home() {
     }
     await supabase.auth.signOut();
     resetAppState();
+    pendingSyncConflictRef.current = null;
+    setSyncConflict(null);
+    setLegacyRecoveryPayload(null);
+    legacyImportPendingRef.current = false;
     userIdRef.current = null;
     setCloudLoaded(false);
+  };
+  const recoverLegacyData = () => {
+    if (!legacyRecoveryPayload) return;
+    const migration = migrateLegacyWeslyFaturaEntries(legacyRecoveryPayload);
+    legacyImportPendingRef.current = true;
+    hydratingRef.current = false;
+    skipNextPersistRef.current = false;
+    applyPayloadToState(migration.payload as Record<string, unknown>);
+    setLegacyRecoveryPayload(null);
+    setCloudLoaded(true);
+    notify("Dados antigos carregados. Uma cópia local será feita antes da sincronização.");
+  };
+  const leaveLegacyRecovery = async () => {
+    setLegacyRecoveryError("");
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setLegacyRecoveryError("Não foi possível sair agora. Os dados antigos continuam preservados neste aparelho.");
+      return;
+    }
+    resetAppState();
+    userIdRef.current = null;
+    legacyImportPendingRef.current = false;
+    setLegacyRecoveryPayload(null);
+    setCloudLoaded(false);
+  };
+  const resolveSyncConflict = (choice: "local" | "remote") => {
+    const conflict = pendingSyncConflictRef.current;
+    if (!conflict || (choice === "remote" && !conflict.remotePayload)) return;
+    if (persistTimerRef.current) {
+      window.clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    pendingSyncConflictRef.current = null;
+    setSyncConflict(null);
+    lastCloudUpdatedAtRef.current = conflict.remoteUpdatedAt;
+    if (choice === "local") {
+      const migration = migrateLegacyWeslyFaturaEntries(conflict.localPayload);
+      localDirtyRef.current = true;
+      skipNextPersistRef.current = false;
+      hydratingRef.current = false;
+      applyPayloadToState(migration.payload as Record<string, unknown>);
+      notify("Rascunho restaurado. Ele será sincronizado e substituirá a versão online se ela não mudar novamente.");
+      return;
+    }
+    const migration = migrateLegacyWeslyFaturaEntries(conflict.remotePayload as Record<string, unknown>);
+    const remoteSnapshot = migration.payload as Record<string, unknown>;
+    localDirtyRef.current = false;
+    legacyImportPendingRef.current = false;
+    skipNextPersistRef.current = !migration.changed;
+    hydratingRef.current = false;
+    const userId = userIdRef.current;
+    if (userId) {
+      localStorage.removeItem(`finance-state-draft:${userId}`);
+      localStorage.removeItem(localDraftSavedAtKey(userId));
+      localStorage.setItem(localBackupResolvedKey(userId), stableStringify(remoteSnapshot));
+      saveLocalJsonBackup(userId, remoteSnapshot as unknown as AppSnapshot);
+    }
+    lastSnapshotRef.current = remoteSnapshot as unknown as AppSnapshot;
+    undoSnapshotRef.current = null;
+    setCanUndo(false);
+    applyPayloadToState(remoteSnapshot);
+    notify("Versão online aplicada. A cópia de segurança local não foi apagada.");
   };
   const settingsForPerson: IndicatorSettings = indicatorSettings[selectedPerson] || (isSalaryPerson
     ? { salary: true, expenses: true, leftover: true, card: true }
@@ -1089,10 +1516,30 @@ export default function Home() {
   };
   const editEntry = (month: string, updated: Entry) => {
     const sourceRows = month === currentMonth ? entries : (archivedData[month] || []);
-    const sourceUpdated = sourceRows.map((entry) => entry.id === updated.id ? updated : entry);
-    if (month === currentMonth) setEntries(sourceUpdated);
-    else setArchivedData((current) => ({ ...current, [month]: sourceUpdated }));
-    setSummaries((current) => recalculateMonth(month, sourceUpdated, current));
+    const destinationMonth = isWeslyFaturaEntry(updated.person, updated.origin, updated.expense) && updated.purchaseDate
+      ? invoiceMonthForCardDate(updated.purchaseDate) || month
+      : month;
+    if (destinationMonth === month) {
+      const sourceUpdated = sourceRows.map((entry) => entry.id === updated.id ? updated : entry);
+      if (month === currentMonth) setEntries(sourceUpdated);
+      else setArchivedData((current) => ({ ...current, [month]: sourceUpdated }));
+      setSummaries((current) => recalculateMonth(month, sourceUpdated, current));
+    } else {
+      const sourceRemaining = sourceRows.filter((entry) => entry.id !== updated.id);
+      const destinationRows = destinationMonth === currentMonth ? entries : (archivedData[destinationMonth] || []);
+      const destinationUpdated = [updated, ...destinationRows.filter((entry) => entry.id !== updated.id)];
+      setEntries((current) => month === currentMonth ? sourceRemaining : destinationMonth === currentMonth ? destinationUpdated : current);
+      setArchivedData((current) => {
+        const next = { ...current };
+        if (month === currentMonth) delete next[month];
+        else next[month] = sourceRemaining;
+        if (destinationMonth === currentMonth) delete next[destinationMonth];
+        else next[destinationMonth] = destinationUpdated;
+        return next;
+      });
+      setArchivedMonths((current) => destinationMonth === currentMonth || current.includes(destinationMonth) ? current : [destinationMonth, ...current]);
+      setSummaries((current) => recalculateMonth(destinationMonth, destinationUpdated, recalculateMonth(month, sourceRemaining, current)));
+    }
     notify("Lançamento atualizado. Salvando...");
   };
   const deleteEntry = (month: string, id: number) => {
@@ -1133,8 +1580,14 @@ export default function Home() {
       return;
     }
     const usesBillingCycle = isWeslyFaturaEntry(person, origin, expense);
-    const entryMonth = usesBillingCycle ? getWeslyCurrentInvoiceMonth() : currentMonth;
-    const newEntry: Entry = { id: Date.now(), person, origin, expense, value };
+    const purchaseDate = form.purchaseDate.trim();
+    const invoiceMonth = usesBillingCycle ? invoiceMonthForCardDate(purchaseDate) : null;
+    if (usesBillingCycle && !invoiceMonth) {
+      notify("Informe uma data de compra válida para calcular a fatura.");
+      return;
+    }
+    const entryMonth = invoiceMonth || currentMonth;
+    const newEntry: Entry = { id: Date.now(), person, origin, expense, value, ...(usesBillingCycle ? { purchaseDate } : {}) };
     const monthRows = entryMonth === currentMonth ? entries : (archivedData[entryMonth] || []);
     const nextMonthRows = [newEntry, ...monthRows];
     if (entryMonth === currentMonth) setEntries(nextMonthRows);
@@ -1167,6 +1620,7 @@ export default function Home() {
     : selectedExpenses > 0 ? palette.card : palette.background;
   const visibleExpenses = expenses.filter((expense) => !(hiddenExpensesByMonth[currentMonth] || []).includes(expense));
 
+  if (legacyRecoveryPayload) return <div className="month-modal-backdrop" role="presentation"><div className="month-modal" role="dialog" aria-modal="true" aria-labelledby="legacy-recovery-title"><span className="modal-kicker">RECUPERAÇÃO DE DADOS</span><h2 id="legacy-recovery-title">Encontramos dados antigos neste aparelho</h2><p>Esses dados ainda não estão vinculados a uma conta. Eles continuam intactos; confirme que pertencem a <strong>{accountLabel}</strong> antes de importar.</p>{legacyRecoveryError && <p role="alert">{legacyRecoveryError}</p>}<div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => { void leaveLegacyRecovery(); }}>Sair e trocar de conta</button><button type="button" className="modal-confirm" onClick={recoverLegacyData}>Recuperar nesta conta</button></div></div></div>;
   if (!cloudLoaded) return <div className="auth-loading">Carregando seus dados salvos...</div>;
   if (cloudLoadError) return <div className="auth-loading">{cloudLoadError}</div>;
   return (
@@ -1186,6 +1640,7 @@ export default function Home() {
       {showSalaryEditor && <div className="salary-editor-backdrop" role="presentation" onClick={() => setShowSalaryEditor(false)}><div className="salary-editor-modal" role="dialog" aria-modal="true" aria-labelledby="salary-editor-title" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR SALÁRIO</span><h2 id="salary-editor-title">Salário de {currentMonth}</h2><p>Altere o valor deste mês. O salário ficará salvo no histórico mensal do Supabase.</p><label className="field-label">VALOR DO SALÁRIO<input className="sheet-input" inputMode="decimal" autoFocus value={salaryDraft} onChange={(event) => setSalaryDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveSalary(); }} /></label><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowSalaryEditor(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveSalary}>Salvar salário</button></div></div></div>}
       {showSettings && <div className="settings-backdrop" role="presentation" onClick={() => setShowSettings(false)}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}><div className="settings-heading"><div><span className="modal-kicker">CONFIGURAÇÕES</span><h2 id="settings-title">Indicadores de {selectedPerson}</h2></div><button type="button" className="settings-close" onClick={() => setShowSettings(false)} aria-label="Fechar configurações"><X size={18} /></button></div><p>Usuário logado possui salário e sobra. Os demais perfis mostram apenas despesas e cartão.</p><div className="settings-list">{configurableIndicators.map(([key, label]) => <label className={`settings-row settings-row-${key}`} key={key}><span>{label}</span><input type="checkbox" checked={settingsForPerson[key]} onChange={(event) => updateIndicator(key, event.target.checked)} /><span className="toggle-track" aria-hidden="true"><span /></span></label>)}</div><div className="reminder-section"><span className="palette-title">LEMBRETE DE CONTAS</span><p>Escolha o dia para receber um aviso mensal e conferir as contas pagas.</p><div className="reminder-day-row"><label className="field-label">DIA DO MÊS<select className="sheet-input reminder-day-select" value={reminderDay} onChange={(event) => setReminderDay(Number(event.target.value))}>{Array.from({ length: 31 }, (_, index) => index + 1).map((day) => <option value={day} key={day}>{day}</option>)}</select></label><button type="button" className="palette-reset reminder-toggle-button" onClick={() => { void toggleReminders(); }}>{reminderEnabled ? "Desativar" : "Ativar"}</button></div><small className="backup-note">Permita notificações no navegador. O atalho PWA precisa ser aberto pelo menos uma vez.</small></div><div className="palette-section"><span className="palette-title">PALETA DE CORES</span><p>Personalize o visual do sistema. As cores ficam salvas no Supabase.</p><div className="palette-preview" aria-label="Prévia do tema inteligente"><span style={{ background: palette.primary }} /><span style={{ background: palette.card }} /><span style={{ background: palette.background }} /><span style={{ background: palette.text }} /></div><p className="smart-palette-note">Uma única cor principal. O sistema combina automaticamente o fundo, os cartões e os textos para manter o contraste e a harmonia.</p><div className="palette-grid"><PalettePicker label="Cor principal do sistema" value={palette.primary} onChange={(value) => setPalette(smartPalette(value))} /></div><button type="button" className="palette-reset" onClick={() => setPalette(defaultPalette)}>Restaurar cores originais</button></div><button type="button" className="palette-reset backup-export-button" onClick={downloadJsonBackup}><Download size={15} /> Baixar backup JSON</button><small className="backup-note">Um backup local também é salvo automaticamente ao fechar ou colocar o app em segundo plano.</small><button type="button" className="settings-done" onClick={closeSettings}>Concluir</button></div></div>}
       {showNewMonthConfirm && <div className="month-modal-backdrop" role="presentation"><div className="month-modal" role="dialog" aria-modal="true" aria-labelledby="new-month-title"><span className="modal-kicker">ARQUIVAR MÊS</span><h2 id="new-month-title">Começar um novo mês?</h2><p>Os lançamentos de <strong>{currentMonth}</strong> serão salvos no histórico e a tela ficará pronta para {nextMonth(currentMonth)}.</p><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => setShowNewMonthConfirm(false)}>Cancelar</button><button type="button" className="modal-confirm" onClick={() => { setShowNewMonthConfirm(false); startNewMonth(); }}>Começar novo mês</button></div></div></div>}
+      {syncConflict && <div className="month-modal-backdrop" role="presentation"><div className="month-modal" role="alertdialog" aria-modal="true" aria-labelledby="sync-conflict-title"><span className="modal-kicker">SINCRONIZAÇÃO</span><h2 id="sync-conflict-title">Há duas versões diferentes</h2><p>A cópia local (rascunho ou backup automático) foi preservada. Escolha qual versão manter. Restaurar a cópia local substituirá os dados online; os backups anteriores continuam no aparelho.</p><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={() => resolveSyncConflict("remote")} disabled={!syncConflict.remotePayload}>{syncConflict.remotePayload ? "Manter versão online" : "Versão online indisponível"}</button><button type="button" className="modal-confirm" onClick={() => resolveSyncConflict("local")}>Restaurar deste aparelho</button></div></div></div>}
     </div>
   );
 }
@@ -1230,15 +1685,16 @@ function PalettePicker({ label, value, onChange }: { label: string; value: strin
 function Register({ form, setForm, onSubmit, people, origins, expenses }: { people: string[]; origins: string[]; expenses: string[]; form: ExpenseForm; setForm: React.Dispatch<React.SetStateAction<ExpenseForm>>; onSubmit: (event: FormEvent) => void }) {
   const choose = (field: "person" | "origin" | "expense", value: string) => setForm((current) => ({ ...current, [field]: value }));
   const hasWeslyFatura = isWeslyFaturaEntry(form.person, form.origin, form.expense);
-  const invoiceMonth = hasWeslyFatura ? getWeslyCurrentInvoiceMonth() : null;
+  const invoiceMonth = hasWeslyFatura ? invoiceMonthForCardDate(form.purchaseDate) : null;
   return (
     <section className="register-view">
-      <div className="section-title"><span>REGISTRO</span><h1>Adicionar despesa</h1><p>Cartão combina com FATURA/FUTURA; outras despesas usam conta simples. Para Wesly, a categoria FATURA vai para o mês da fatura atual.</p></div>
+      <div className="section-title"><span>REGISTRO</span><h1>Adicionar despesa</h1><p>Cartão combina com FATURA/FUTURA; outras despesas usam conta simples. A fatura de Wesly é definida pela data da compra.</p></div>
       <form className="register-card" onSubmit={onSubmit}>
         <Field label="PESSOA"><Select value={form.person} placeholder="Selecione uma pessoa" options={people} onChange={(value) => choose("person", value)} /></Field>
         <Field label="ORIGEM"><Select value={form.origin} placeholder="Selecione a origem" options={origins} onChange={(value) => choose("origin", value)} /></Field>
         <Field label="DESPESA"><Select value={form.expense} placeholder="Selecione uma despesa" options={expenses} onChange={(value) => choose("expense", value)} /></Field>
-        {invoiceMonth && <p className="card-cycle-note">O lançamento de FATURA de Wesly será registrado em <strong>{invoiceMonth}</strong> (fecha dia {WESLY_CARD_CLOSING_DAY}).</p>}
+        {hasWeslyFatura && <Field label="DATA DA COMPRA"><input className="sheet-input" type="date" required value={form.purchaseDate} onChange={(event) => setForm((current) => ({ ...current, purchaseDate: event.target.value }))} /></Field>}
+        {hasWeslyFatura && <p className="card-cycle-note">{invoiceMonth ? <>Esta compra entra na fatura de <strong>{invoiceMonth}</strong> (fecha dia {WESLY_CARD_CLOSING_DAY}).</> : "Informe uma data de compra válida."}</p>}
         <label className="field-label">VALOR<input className="sheet-input" inputMode="decimal" placeholder="R$ 0,00" value={form.value} onChange={(event) => setForm((current) => ({ ...current, value: event.target.value }))} /></label>
         <button className="register-button" type="submit">REGISTRAR</button>
       </form>
@@ -1257,18 +1713,26 @@ function HistoryView({ entries, allEntries, invoiceMonth, invoiceEntries, search
   const [editing, setEditing] = useState<{ month: string; entry: Entry } | null>(null);
   const [draft, setDraft] = useState<Entry | null>(null);
   const [valueDraft, setValueDraft] = useState("");
+  const [editError, setEditError] = useState("");
   const startEdit = (archiveMonth: string, entry: HistoryRowEntry) => {
     const editableEntry = { ...entry };
     delete editableEntry.sourceMonth;
     setEditing({ month: archiveMonth, entry: editableEntry });
     setDraft(editableEntry);
     setValueDraft(entry.value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setEditError("");
   };
-  const closeEdit = () => { setEditing(null); setDraft(null); setValueDraft(""); };
+  const closeEdit = () => { setEditing(null); setDraft(null); setValueDraft(""); setEditError(""); };
   const saveEdit = () => {
     const value = parseAmount(valueDraft);
     if (editing && draft && draft.person.trim() && draft.origin.trim() && draft.expense.trim() && Number.isFinite(value) && value > 0) {
-      onEdit(editing.month, { ...draft, value, person: draft.person.trim(), origin: draft.origin.trim(), expense: draft.expense.trim() });
+      const updated = { ...draft, value, person: draft.person.trim(), origin: draft.origin.trim(), expense: draft.expense.trim() };
+      if (isWeslyFaturaEntry(updated.person, updated.origin, updated.expense) && !invoiceMonthForCardDate(updated.purchaseDate || "")) {
+        setEditError("Informe uma data de compra válida para calcular a fatura.");
+        return;
+      }
+      if (!updated.purchaseDate) delete updated.purchaseDate;
+      onEdit(editing.month, updated);
       closeEdit();
     }
   };
@@ -1337,7 +1801,7 @@ function HistoryView({ entries, allEntries, invoiceMonth, invoiceEntries, search
       {exportMessage && <div className="export-message" role="status">{exportMessage}</div>}
       <div className="history-toolbar"><div className="sheet-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar pessoa, origem ou despesa" />{search && <button type="button" onClick={(event) => { event.preventDefault(); setSearch(""); }} aria-label="Limpar pesquisa"><X size={15} /></button>}</div></div>
       <div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span><span>AÇÃO</span></div>{rows(visibleMonthEntries, month)}{visibleMonthEntries.length === 0 && <div className="no-results">Nenhum registro registrado em {month}.</div>}</div>
-      {editing && draft && <div className="edit-entry-backdrop" role="presentation" onClick={closeEdit}><div className="edit-entry-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR LANÇAMENTO</span><h2>{editing.month}</h2><input value={draft.person} onChange={(event) => setDraft({ ...draft, person: event.target.value })} aria-label="Pessoa" /><input value={draft.origin} onChange={(event) => setDraft({ ...draft, origin: event.target.value })} aria-label="Origem" /><input value={draft.expense} onChange={(event) => setDraft({ ...draft, expense: event.target.value })} aria-label="Despesa" /><input inputMode="decimal" value={valueDraft} onChange={(event) => setValueDraft(event.target.value)} onBlur={() => { const parsed = parseAmount(valueDraft); if (Number.isFinite(parsed)) setValueDraft(parsed.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })); }} aria-label="Valor" /><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={closeEdit}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveEdit}>Salvar</button></div></div></div>}
+      {editing && draft && <div className="edit-entry-backdrop" role="presentation" onClick={closeEdit}><div className="edit-entry-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR LANÇAMENTO</span><h2>{editing.month}</h2><input value={draft.person} onChange={(event) => { setDraft({ ...draft, person: event.target.value }); setEditError(""); }} aria-label="Pessoa" /><input value={draft.origin} onChange={(event) => { setDraft({ ...draft, origin: event.target.value }); setEditError(""); }} aria-label="Origem" /><input value={draft.expense} onChange={(event) => { setDraft({ ...draft, expense: event.target.value }); setEditError(""); }} aria-label="Despesa" />{(draft.purchaseDate || isWeslyFaturaEntry(draft.person, draft.origin, draft.expense)) && <><input type="date" value={draft.purchaseDate || ""} onChange={(event) => { setDraft({ ...draft, purchaseDate: event.target.value }); setEditError(""); }} aria-label="Data da compra" />{isWeslyFaturaEntry(draft.person, draft.origin, draft.expense) && invoiceMonthForCardDate(draft.purchaseDate || "") && <small className="card-cycle-note">Esta compra entra na fatura de {invoiceMonthForCardDate(draft.purchaseDate || "")}.</small>}</>}{editError && <p role="alert">{editError}</p>}<input inputMode="decimal" value={valueDraft} onChange={(event) => setValueDraft(event.target.value)} onBlur={() => { const parsed = parseAmount(valueDraft); if (Number.isFinite(parsed)) setValueDraft(parsed.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })); }} aria-label="Valor" /><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={closeEdit}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveEdit}>Salvar</button></div></div></div>}
     </section>
   );
 }
@@ -1348,12 +1812,14 @@ return <section className="categories-view"><div className="section-title"><span
 
 function ExpenseListView({ month, salary, entries, weslyInvoiceEntries, selectedPerson, expenses, paidExpenses, onTogglePaid }: { month: string; salary: number; entries: Entry[]; weslyInvoiceEntries: InvoiceEntry[]; selectedPerson: string; expenses: string[]; paidExpenses: Record<string, boolean>; onTogglePaid: (expense: string) => void }) {
   const expenseTotalFor = (expense: string) => {
-    if (normalizedLabel(selectedPerson) === "WESLY" && normalizedLabel(expense) === "FATURA") {
+    if (normalizedLabel(selectedPerson) === "WESLY" && isInvoiceExpense(expense)) {
       return weslyInvoiceEntries.reduce((sum, entry) => sum + entry.value, 0);
     }
     return entries.filter((entry) => entry.expense === expense).reduce((sum, entry) => sum + entry.value, 0);
   };
-  const paidTotal = expenses.reduce((sum, expense) => isPaidExpense(paidExpenses, month, expense) ? sum + expenseTotalFor(expense) : sum, 0);
+  const firstInvoiceCategory = expenses.findIndex(isInvoiceExpense);
+  const displayedExpenses = expenses.filter((expense, index) => !isInvoiceExpense(expense) || index === firstInvoiceCategory);
+  const paidTotal = displayedExpenses.reduce((sum, expense) => isPaidExpense(paidExpenses, month, expense) ? sum + expenseTotalFor(expense) : sum, 0);
   const remainingSalary = salary - paidTotal;
   return (
     <section className="categories-view">
@@ -1363,7 +1829,7 @@ function ExpenseListView({ month, salary, entries, weslyInvoiceEntries, selected
         <strong>{brl.format(remainingSalary)}</strong>
       </div>
       <div className="paid-expenses-list">
-        {expenses.map((expense) => {
+        {displayedExpenses.map((expense) => {
           const paid = isPaidExpense(paidExpenses, month, expense);
           const expenseTotal = expenseTotalFor(expense);
           return (
