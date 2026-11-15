@@ -552,11 +552,18 @@ export default function Home() {
   const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
   const selectedExpenses = useMemo(() => selectedEntries.reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
+  const currentCalendarMonth = calendarMonth();
   const weslyCurrentInvoiceMonth = getWeslyCurrentInvoiceMonth();
   const currentInvoiceEntries = useMemo(() => {
+    const calendarRows = currentCalendarMonth === currentMonth ? entries : (archivedData[currentCalendarMonth] || []);
     const invoiceRows = weslyCurrentInvoiceMonth === currentMonth ? entries : (archivedData[weslyCurrentInvoiceMonth] || []);
-    return invoiceRows.filter((entry) => isCardOrigin(entry.origin) && normalizedLabel(entry.expense) === "FATURA");
-  }, [weslyCurrentInvoiceMonth, currentMonth, entries, archivedData]);
+    const uniqueRows = new Map<string, Entry>();
+    for (const entry of [...calendarRows, ...invoiceRows]) {
+      const fingerprint = JSON.stringify([entry.id, normalizedLabel(entry.person), normalizedLabel(entry.origin), normalizedLabel(entry.expense), entry.value, entry.purchaseDate || ""]);
+      if (!uniqueRows.has(fingerprint)) uniqueRows.set(fingerprint, entry);
+    }
+    return Array.from(uniqueRows.values()).filter((entry) => isCardOrigin(entry.origin) && normalizedLabel(entry.expense) === "FATURA");
+  }, [currentCalendarMonth, weslyCurrentInvoiceMonth, currentMonth, entries, archivedData]);
   const weslyInvoiceEntries = useMemo(() => currentInvoiceEntries.filter((entry) => normalizedLabel(entry.person) === "WESLY"), [currentInvoiceEntries]);
   const selectedCard = useMemo(() => normalizedLabel(selectedPerson) === "WESLY"
     ? weslyInvoiceEntries.reduce((sum, entry) => sum + entry.value, 0)
