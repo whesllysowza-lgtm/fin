@@ -2152,3 +2152,54 @@ html, body { background: linear-gradient(135deg, #e8f7ff 0%, #f8fcff 48%, #cfeef
 .card-invoice-heading strong { color: var(--theme-text, #12344d); font-size: 17px; }
 .card-invoice-heading small { color: var(--theme-text, #12344d); opacity: .75; font-size: 11px; }
 .card-invoice-panel .history-table { margin-top: 0; }
+
+
+.invoice-person-filter-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.invoice-person-filter-button:hover,
+.invoice-person-filter-button[aria-pressed="true"] {
+  color: var(--theme-primary, #1888c7);
+}
+.invoice-person-filter-button[aria-pressed="true"] {
+  font-weight: 800;
+  text-decoration-style: solid;
+}
+.invoice-person-filter-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 0 10px;
+  color: var(--theme-text, #12344d);
+  font-size: 12px;
+}
+.invoice-person-filter-status button {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--theme-primary, #1888c7) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--theme-card, #d9f1ff) 72%, transparent);
+  color: var(--theme-text, #12344d);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.invoice-person-filter-status button:hover {
+  background: var(--theme-card, #d9f1ff);
+}
+@media (max-width: 600px) {
+  .invoice-person-filter-status {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

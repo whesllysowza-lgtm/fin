@@ -1117,6 +1117,7 @@ function QuickChoices({ options, value, onChoose }: { options: string[]; value: 
 function HistoryView({ entries, allEntries, invoiceMonth, invoiceEntries, search, setSearch, month, archivedMonths, archivedData, summaries, person, onEdit, onDelete, onMonthChange }: { entries: Entry[]; allEntries: Entry[]; invoiceMonth: string; invoiceEntries: InvoiceEntry[]; search: string; setSearch: (value: string) => void; month: string; archivedMonths: string[]; archivedData: Record<string, Entry[]>; summaries: Record<string, MonthlySummary>; person: string; onEdit: (month: string, entry: Entry) => void; onDelete: (month: string, id: number) => void; onMonthChange: (month: string) => void }) {
   const [exportMonth, setExportMonth] = useState(month);
   const [exportMessage, setExportMessage] = useState("");
+  const [invoicePersonFilter, setInvoicePersonFilter] = useState("");
   const [editing, setEditing] = useState<{ month: string; entry: Entry } | null>(null);
   const [draft, setDraft] = useState<Entry | null>(null);
   const [valueDraft, setValueDraft] = useState("");
@@ -1135,13 +1136,18 @@ function HistoryView({ entries, allEntries, invoiceMonth, invoiceEntries, search
       closeEdit();
     }
   };
-  const rows = (items: HistoryRowEntry[], rowMonth: string, readOnly = false) => items.map((entry, index) => {
+  const rows = (items: HistoryRowEntry[], rowMonth: string, readOnly = false, onPersonClick?: (name: string) => void) => items.map((entry, index) => {
     const sourceMonth = entry.sourceMonth || rowMonth;
-    return <div className="table-row history-row" key={`${rowMonth}-${entry.id}-${index}`}><span>{entry.person}</span><span>{entry.origin}</span><span className="history-expense-cell">{entry.expense}{entry.purchaseDate && <small>Compra em {formatPurchaseDate(entry.purchaseDate)}</small>}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions">{!readOnly && <><button type="button" onClick={() => startEdit(sourceMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" onClick={() => onDelete(sourceMonth, entry.id)} aria-label="Apagar lançamento"><Trash2 size={14} /></button></>}</div></div>;
+    const personCell = onPersonClick ? <button type="button" className="invoice-person-filter-button" aria-pressed={normalizedLabel(invoicePersonFilter) === normalizedLabel(entry.person)} aria-label={`Filtrar fatura por ${entry.person}`} onClick={() => onPersonClick(entry.person)}>{entry.person}</button> : entry.person;
+    return <div className="table-row history-row" key={`${rowMonth}-${entry.id}-${index}`}><span>{personCell}</span><span>{entry.origin}</span><span className="history-expense-cell">{entry.expense}{entry.purchaseDate && <small>Compra em {formatPurchaseDate(entry.purchaseDate)}</small>}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions">{!readOnly && <><button type="button" onClick={() => startEdit(sourceMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" onClick={() => onDelete(sourceMonth, entry.id)} aria-label="Apagar lançamento"><Trash2 size={14} /></button></>}</div></div>;
   });
   const isWeslySelected = normalizedLabel(person) === "WESLY";
   const query = search.trim().toLocaleLowerCase("pt-BR");
-  const visibleInvoiceEntries = isWeslySelected ? invoiceEntries.filter((entry) => !query || `${entry.person} ${entry.origin} ${entry.expense}`.toLocaleLowerCase("pt-BR").includes(query)) : [];
+  const visibleInvoiceEntries = isWeslySelected ? invoiceEntries.filter((entry) => {
+    const matchesPerson = !invoicePersonFilter || normalizedLabel(entry.person) === normalizedLabel(invoicePersonFilter);
+    const matchesQuery = !query || `${entry.person} ${entry.origin} ${entry.expense}`.toLocaleLowerCase("pt-BR").includes(query);
+    return matchesPerson && matchesQuery;
+  }) : [];
   const visibleMonthEntries = isWeslySelected && month === invoiceMonth
     ? entries.filter((entry) => !isWeslyFaturaEntry(entry.person, entry.origin, entry.expense))
     : entries;
@@ -1158,6 +1164,9 @@ function HistoryView({ entries, allEntries, invoiceMonth, invoiceEntries, search
   useEffect(() => {
     if (!monthOptions.includes(exportMonth)) setExportMonth(month);
   }, [month, exportMonth, monthOptions.join("|")]);
+  useEffect(() => {
+    setInvoicePersonFilter("");
+  }, [person, invoiceMonth]);
   const exportEntries = (exportMonth === month ? allEntries : (archivedData[exportMonth] || [])).filter((entry) => entry.person === person);
   const exportSpreadsheet = () => {
     const csvRows = [["MÊS", exportMonth], [], ["PESSOA", "ORIGEM", "DESPESA", "DATA DA COMPRA", "VALOR"], ...exportEntries.map((entry) => [entry.person, entry.origin, entry.expense, entry.purchaseDate ? formatPurchaseDate(entry.purchaseDate) : "", entry.value.toFixed(2).replace(".", ",")]), [], ["TOTAL", "", "", "", exportEntries.reduce((sum, entry) => sum + entry.value, 0).toFixed(2).replace(".", ",")]];
@@ -1177,7 +1186,17 @@ function HistoryView({ entries, allEntries, invoiceMonth, invoiceEntries, search
     <section className="history-view">
       <div className="section-title"><span>HISTÓRICO</span><h1>Lançamentos registrados</h1><p>Registros de {month} para {person}. A fatura atual reúne os lançamentos FATURA de todos os perfis, separada do mês-calendário.</p></div>
       <div className="history-month-picker"><label className="field-label">VISUALIZAR MÊS<select className="export-month-select" value={month} onChange={(event) => onMonthChange(event.target.value)} aria-label="Abrir outro mês">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label></div>
-      {isWeslySelected && <div className="card-invoice-panel"><div className="card-invoice-heading"><div><span>FATURA ATUAL · TODOS OS PERFIS</span><strong>{invoiceMonth}</strong></div><small>Fecha dia {WESLY_CARD_CLOSING_DAY} · total {brl.format(invoiceEntries.reduce((sum, entry) => sum + entry.value, 0))}</small></div><div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span><span>AÇÃO</span></div>{rows(visibleInvoiceEntries, invoiceMonth)}{visibleInvoiceEntries.length === 0 && <div className="no-results">Nenhum lançamento de FATURA em {invoiceMonth}.</div>}</div></div>}
+      {isWeslySelected && (
+        <div className="card-invoice-panel">
+          <div className="card-invoice-heading"><div><span>FATURA ATUAL · TODOS OS PERFIS</span><strong>{invoiceMonth}</strong></div><small>Fecha dia {WESLY_CARD_CLOSING_DAY} · total {brl.format(invoiceEntries.reduce((sum, entry) => sum + entry.value, 0))}</small></div>
+          <div className="invoice-person-filter-status" role="status"><span>{invoicePersonFilter ? <>Filtrando por <strong>{invoicePersonFilter}</strong>; o total acima continua incluindo todos os perfis.</> : "Toque no nome de uma pessoa para filtrar os lançamentos."}</span>{invoicePersonFilter && <button type="button" onClick={() => setInvoicePersonFilter("")}>Mostrar todos</button>}</div>
+          <div className="history-table">
+            <div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span><span>AÇÃO</span></div>
+            {rows(visibleInvoiceEntries, invoiceMonth, false, (name) => setInvoicePersonFilter((current) => normalizedLabel(current) === normalizedLabel(name) ? "" : name))}
+            {visibleInvoiceEntries.length === 0 && <div className="no-results">{invoicePersonFilter ? `Nenhum lançamento de FATURA para ${invoicePersonFilter} que corresponda à busca.` : `Nenhum lançamento de FATURA em ${invoiceMonth}.`}</div>}
+          </div>
+        </div>
+      )}
       <div className="export-panel"><div><span>EXPORTAR PLANILHA</span><strong>Escolha o mês desejado</strong></div><div className="export-controls"><select className="export-month-select" value={exportMonth} onChange={(event) => setExportMonth(event.target.value)} aria-label="Mês para exportar">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="export-button" onClick={exportSpreadsheet}><Download size={16} /> Exportar</button></div></div>
       {exportMessage && <div className="export-message" role="status">{exportMessage}</div>}
       <div className="history-toolbar"><div className="sheet-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar pessoa, origem ou despesa" />{search && <button type="button" onClick={(event) => { event.preventDefault(); setSearch(""); }} aria-label="Limpar pesquisa"><X size={15} /></button>}</div></div>
