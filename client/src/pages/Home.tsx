@@ -551,7 +551,6 @@ export default function Home() {
   const isSalaryPerson = Boolean(selectedPerson) && selectedPerson === salaryPerson;
   const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
-  const selectedExpenses = useMemo(() => selectedEntries.reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
   const currentCalendarMonth = calendarMonth();
   const weslyCurrentInvoiceMonth = getWeslyCurrentInvoiceMonth();
   const currentInvoiceEntries = useMemo(() => {
@@ -565,6 +564,16 @@ export default function Home() {
     return Array.from(uniqueRows.values()).filter((entry) => isCardOrigin(entry.origin) && normalizedLabel(entry.expense) === "FATURA");
   }, [currentCalendarMonth, weslyCurrentInvoiceMonth, currentMonth, entries, archivedData]);
   const weslyInvoiceEntries = useMemo(() => currentInvoiceEntries.filter((entry) => normalizedLabel(entry.person) === "WESLY"), [currentInvoiceEntries]);
+  const selectedExpenses = useMemo(() => {
+    if (normalizedLabel(selectedPerson) !== "WESLY" || currentMonth !== currentCalendarMonth) {
+      return selectedEntries.reduce((sum, entry) => sum + entry.value, 0);
+    }
+    const currentMonthWithoutWeslyInvoice = selectedEntries
+      .filter((entry) => !isWeslyFaturaEntry(entry.person, entry.origin, entry.expense))
+      .reduce((sum, entry) => sum + entry.value, 0);
+    const weslyInvoiceTotal = weslyInvoiceEntries.reduce((sum, entry) => sum + entry.value, 0);
+    return currentMonthWithoutWeslyInvoice + weslyInvoiceTotal;
+  }, [selectedEntries, selectedPerson, currentMonth, currentCalendarMonth, weslyInvoiceEntries]);
   const selectedCard = useMemo(() => normalizedLabel(selectedPerson) === "WESLY"
     ? weslyInvoiceEntries.reduce((sum, entry) => sum + entry.value, 0)
     : selectedEntries.filter((entry) => isCardOrigin(entry.origin)).reduce((sum, entry) => sum + entry.value, 0), [selectedPerson, selectedEntries, weslyInvoiceEntries]);
@@ -1042,7 +1051,7 @@ function Dashboard({ people, settings, month, invoiceMonth, archivedMonths, sala
   return (
     <section className="panel-view">
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
-      {normalizedLabel(selectedPerson) === "WESLY" && <p className="card-cycle-note dashboard-card-invoice-note">O gasto com cartão mostra o valor individual de Wesly. A fatura atual de <strong>{invoiceMonth}</strong> mostra o total de todos os perfis, inclusive Wesly; fecha dia {WESLY_CARD_CLOSING_DAY}. O mês da planilha continua separado.</p>}
+      {normalizedLabel(selectedPerson) === "WESLY" && <p className="card-cycle-note dashboard-card-invoice-note">Despesas e Sobrou de Wesly incluem os gastos dele, inclusive cartão simples e FATURA individual. O indicador de cartão mostra o valor individual; a fatura atual de <strong>{invoiceMonth}</strong> soma todos os perfis, inclusive Wesly, e fecha dia {WESLY_CARD_CLOSING_DAY}. O mês da planilha continua separado.</p>}
       <div className={`welcome-strip ${!settings.salary ? "without-salary" : ""} ${leftover < 0 ? "negative-balance" : ""}`}>
         <div className="welcome-copy"><span>Bem vindo,</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome"><option value="" disabled>{people.length ? "Selecione uma pessoa" : "Adicione uma pessoa em Categorias"}</option>{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
         {settings.salary && <Metric label="Salário" value={salary} visible={showSalary} onToggleVisibility={onToggleSalary} editable onClick={onEditSalary} />}
