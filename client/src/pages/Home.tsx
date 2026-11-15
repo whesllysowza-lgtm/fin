@@ -552,13 +552,16 @@ export default function Home() {
   const summary = useMemo(() => summaries[currentMonth] || emptyMonthlySummary(), [summaries, currentMonth]);
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
   const selectedExpenses = useMemo(() => selectedEntries.reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
-  const selectedCard = useMemo(() => selectedEntries.filter((entry) => isCardOrigin(entry.origin)).reduce((sum, entry) => sum + entry.value, 0), [selectedEntries]);
   const weslyCurrentInvoiceMonth = getWeslyCurrentInvoiceMonth();
-  const weslyInvoiceEntries = useMemo(() => {
+  const currentInvoiceEntries = useMemo(() => {
     const invoiceRows = weslyCurrentInvoiceMonth === currentMonth ? entries : (archivedData[weslyCurrentInvoiceMonth] || []);
-    return invoiceRows.filter((entry) => isWeslyFaturaEntry(entry.person, entry.origin, entry.expense));
+    return invoiceRows.filter((entry) => isCardOrigin(entry.origin) && normalizedLabel(entry.expense) === "FATURA");
   }, [weslyCurrentInvoiceMonth, currentMonth, entries, archivedData]);
-  const invoiceTotal = useMemo(() => weslyInvoiceEntries.reduce((sum, entry) => sum + entry.value, 0), [weslyInvoiceEntries]);
+  const weslyInvoiceEntries = useMemo(() => currentInvoiceEntries.filter((entry) => normalizedLabel(entry.person) === "WESLY"), [currentInvoiceEntries]);
+  const selectedCard = useMemo(() => normalizedLabel(selectedPerson) === "WESLY"
+    ? weslyInvoiceEntries.reduce((sum, entry) => sum + entry.value, 0)
+    : selectedEntries.filter((entry) => isCardOrigin(entry.origin)).reduce((sum, entry) => sum + entry.value, 0), [selectedPerson, selectedEntries, weslyInvoiceEntries]);
+  const invoiceTotal = useMemo(() => currentInvoiceEntries.reduce((sum, entry) => sum + entry.value, 0), [currentInvoiceEntries]);
   const selectedSalary = isSalaryPerson ? summary.salary : 0;
   const leftover = isSalaryPerson && selectedExpenses > 0 ? selectedSalary - selectedExpenses : 0;
   const selectPerson = (name: string) => {
@@ -1014,7 +1017,7 @@ export default function Home() {
         {message && <div className="sheet-message" role="status">{message}</div>}
       {tab === "PAINEL" && <Dashboard people={people} settings={settingsForPerson} month={currentMonth} invoiceMonth={weslyCurrentInvoiceMonth} archivedMonths={archivedMonths} salary={selectedSalary} showSalary={showSalary} onToggleSalary={() => setShowSalary((current) => !current)} expenses={selectedExpenses} leftover={leftover} card={selectedCard} invoiceTotal={invoiceTotal} isAccountHolder={isSalaryPerson} showMascot={showMascot} selectedPerson={selectedPerson} onPersonChange={selectPerson} onRegister={() => setTab("REGISTRO")} onHistory={() => setTab("HISTÓRICO")} onCurrentMonth={goToCurrentMonth} onEditSalary={openSalaryEditor} />}
         {tab === "REGISTRO" && <Register form={form} setForm={setForm} onSubmit={register} people={people} origins={origins} expenses={visibleExpenses} />}
-        {tab === "HISTÓRICO" && <HistoryView entries={filteredEntries} allEntries={selectedEntries} invoiceMonth={weslyCurrentInvoiceMonth} invoiceEntries={weslyInvoiceEntries} search={search} setSearch={setSearch} month={currentMonth} archivedMonths={archivedMonths} archivedData={archivedData} summaries={summaries} person={selectedPerson} onEdit={editEntry} onDelete={deleteEntry} onMonthChange={switchMonth} />}
+        {tab === "HISTÓRICO" && <HistoryView entries={filteredEntries} allEntries={selectedEntries} invoiceMonth={weslyCurrentInvoiceMonth} invoiceEntries={currentInvoiceEntries} search={search} setSearch={setSearch} month={currentMonth} archivedMonths={archivedMonths} archivedData={archivedData} summaries={summaries} person={selectedPerson} onEdit={editEntry} onDelete={deleteEntry} onMonthChange={switchMonth} />}
         {tab === "CATEGORIAS" && <CategoriesView people={people} origins={origins} expenses={expenses} hiddenExpenses={hiddenExpensesByMonth[currentMonth] || []} onRename={updateCategory} onAdd={addCategory} onRemove={removeCategory} />}
       {tab === "LISTA" && <ExpenseListView month={currentMonth} salary={isSalaryPerson ? summary.salary : 0} entries={entries} expenses={visibleExpenses} paidExpenses={paidExpenses} onTogglePaid={togglePaidExpense} />}
       </main>
@@ -1032,7 +1035,7 @@ function Dashboard({ people, settings, month, invoiceMonth, archivedMonths, sala
   return (
     <section className="panel-view">
       <button type="button" className="month-chip" onClick={onCurrentMonth} aria-label="Abrir mês atual">MÊS ATUAL <strong>{month}</strong></button>
-      {normalizedLabel(selectedPerson) === "WESLY" && <p className="card-cycle-note dashboard-card-invoice-note">Fatura atual do cartão: <strong>{invoiceMonth}</strong> · fecha dia {WESLY_CARD_CLOSING_DAY}. O mês da planilha continua separado.</p>}
+      {normalizedLabel(selectedPerson) === "WESLY" && <p className="card-cycle-note dashboard-card-invoice-note">O gasto com cartão mostra o valor individual de Wesly. A fatura atual de <strong>{invoiceMonth}</strong> mostra o total de todos os perfis, inclusive Wesly; fecha dia {WESLY_CARD_CLOSING_DAY}. O mês da planilha continua separado.</p>}
       <div className={`welcome-strip ${!settings.salary ? "without-salary" : ""} ${leftover < 0 ? "negative-balance" : ""}`}>
         <div className="welcome-copy"><span>Bem vindo,</span><select className="person-switcher" value={selectedPerson} onChange={(event) => onPersonChange(event.target.value)} aria-label="Selecionar nome"><option value="" disabled>{people.length ? "Selecione uma pessoa" : "Adicione uma pessoa em Categorias"}</option>{people.map((person) => <option key={person} value={person}>{person}</option>)}</select><ChevronDown size={15} /></div>
         {settings.salary && <Metric label="Salário" value={salary} visible={showSalary} onToggleVisibility={onToggleSalary} editable onClick={onEditSalary} />}
@@ -1105,7 +1108,7 @@ function HistoryView({ entries, allEntries, invoiceMonth, invoiceEntries, search
       closeEdit();
     }
   };
-  const rows = (items: Entry[], rowMonth: string) => items.map((entry) => <div className="table-row history-row" key={`${rowMonth}-${entry.id}`}><span>{entry.person}</span><span>{entry.origin}</span><span className="history-expense-cell">{entry.expense}{entry.purchaseDate && <small>Compra em {formatPurchaseDate(entry.purchaseDate)}</small>}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions"><button type="button" onClick={() => startEdit(rowMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" onClick={() => onDelete(rowMonth, entry.id)} aria-label="Apagar lançamento"><Trash2 size={14} /></button></div></div>);
+  const rows = (items: Entry[], rowMonth: string, readOnly = false) => items.map((entry, index) => <div className="table-row history-row" key={`${rowMonth}-${entry.id}-${index}`}><span>{entry.person}</span><span>{entry.origin}</span><span className="history-expense-cell">{entry.expense}{entry.purchaseDate && <small>Compra em {formatPurchaseDate(entry.purchaseDate)}</small>}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions">{!readOnly && <><button type="button" onClick={() => startEdit(rowMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" onClick={() => onDelete(rowMonth, entry.id)} aria-label="Apagar lançamento"><Trash2 size={14} /></button></>}</div></div>);
   const isWeslySelected = normalizedLabel(person) === "WESLY";
   const query = search.trim().toLocaleLowerCase("pt-BR");
   const visibleInvoiceEntries = isWeslySelected ? invoiceEntries.filter((entry) => !query || `${entry.person} ${entry.origin} ${entry.expense}`.toLocaleLowerCase("pt-BR").includes(query)) : [];
@@ -1142,9 +1145,9 @@ function HistoryView({ entries, allEntries, invoiceMonth, invoiceEntries, search
   };
   return (
     <section className="history-view">
-      <div className="section-title"><span>HISTÓRICO</span><h1>Lançamentos registrados</h1><p>Registros de {month} para {person}. A fatura atual de Wesly aparece separada do mês-calendário.</p></div>
+      <div className="section-title"><span>HISTÓRICO</span><h1>Lançamentos registrados</h1><p>Registros de {month} para {person}. A fatura atual reúne os lançamentos FATURA de todos os perfis, separada do mês-calendário.</p></div>
       <div className="history-month-picker"><label className="field-label">VISUALIZAR MÊS<select className="export-month-select" value={month} onChange={(event) => onMonthChange(event.target.value)} aria-label="Abrir outro mês">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label></div>
-      {isWeslySelected && <div className="card-invoice-panel"><div className="card-invoice-heading"><div><span>FATURA ATUAL DO CARTÃO</span><strong>{invoiceMonth}</strong></div><small>Fechamento dia {WESLY_CARD_CLOSING_DAY}</small></div><div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span><span>AÇÃO</span></div>{rows(visibleInvoiceEntries, invoiceMonth)}{visibleInvoiceEntries.length === 0 && <div className="no-results">Nenhum lançamento de FATURA em {invoiceMonth}.</div>}</div></div>}
+      {isWeslySelected && <div className="card-invoice-panel"><div className="card-invoice-heading"><div><span>FATURA ATUAL · TODOS OS PERFIS</span><strong>{invoiceMonth}</strong></div><small>Fecha dia {WESLY_CARD_CLOSING_DAY} · total {brl.format(invoiceEntries.reduce((sum, entry) => sum + entry.value, 0))}</small></div><div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span><span aria-hidden="true"></span></div>{rows(visibleInvoiceEntries, invoiceMonth, true)}{visibleInvoiceEntries.length === 0 && <div className="no-results">Nenhum lançamento de FATURA em {invoiceMonth}.</div>}</div></div>}
       <div className="export-panel"><div><span>EXPORTAR PLANILHA</span><strong>Escolha o mês desejado</strong></div><div className="export-controls"><select className="export-month-select" value={exportMonth} onChange={(event) => setExportMonth(event.target.value)} aria-label="Mês para exportar">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="export-button" onClick={exportSpreadsheet}><Download size={16} /> Exportar</button></div></div>
       {exportMessage && <div className="export-message" role="status">{exportMessage}</div>}
       <div className="history-toolbar"><div className="sheet-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar pessoa, origem ou despesa" />{search && <button type="button" onClick={(event) => { event.preventDefault(); setSearch(""); }} aria-label="Limpar pesquisa"><X size={15} /></button>}</div></div>
