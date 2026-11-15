@@ -4,7 +4,8 @@ import FinanceMascot from "@/components/FinanceMascot";
 import { isPaidExpense, normalizePaidExpenses, paidExpenseKey, renamePaidExpense, togglePaidExpense as togglePaidExpenseState } from "@/lib/monthlyPaidExpenses";
 import { BarChart3, ChevronDown, CirclePlus, ClipboardList, History, Home as HomeIcon, Plus, Search, Settings2, Download, X, Pencil, Trash2, Undo2, LogOut, Eye, EyeOff, Bold, RefreshCw } from "lucide-react";
 
-type Entry = { id: number; person: string; origin: string; expense: string; value: number };
+type Entry = { id: number; person: string; origin: string; expense: string; value: number; purchaseDate?: string };
+type ExpenseForm = { person: string; origin: string; expense: string; value: string; purchaseDate: string };
 type MonthlySummary = { salary: number; expenses: number; card: number };
 type IndicatorKey = "salary" | "expenses" | "leftover" | "card";
 type IndicatorSettings = Record<IndicatorKey, boolean>;
@@ -129,6 +130,27 @@ function isCardOrigin(value: string) {
 }
 function isInvoiceExpense(value: string) {
   return ["FATURA", "FUTURA"].includes(normalizedLabel(value));
+}
+const WESLY_CARD_CLOSING_DAY = 6;
+function isWeslyCardCycle(person: string, origin: string) {
+  return normalizedLabel(person) === "WESLY" && isCardOrigin(origin);
+}
+function emptyRegistrationForm(): ExpenseForm {
+  return { person: "", origin: "", expense: "", value: "", purchaseDate: "" };
+}
+function invoiceMonthForCardDate(value: string): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const purchaseDate = new Date(Date.UTC(year, month - 1, day));
+  if (purchaseDate.getUTCFullYear() !== year || purchaseDate.getUTCMonth() !== month - 1 || purchaseDate.getUTCDate() !== day) return null;
+  const invoiceDate = new Date(Date.UTC(year, month - 1 + (day > WESLY_CARD_CLOSING_DAY ? 1 : 0), 1));
+  return `${monthNames[invoiceDate.getUTCMonth()]} ${invoiceDate.getUTCFullYear()}`;
+}
+function formatPurchaseDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : value;
 }
 function isSimpleOrigin(value: string) {
   return ["CONTA SIMPLES", "DESPESAS SIMPLES"].includes(normalizedLabel(value));
@@ -290,7 +312,7 @@ export default function Home() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [summaries, setSummaries] = useState<Record<string, MonthlySummary>>({});
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState({ person: "", origin: "", expense: "", value: "" });
+  const [form, setForm] = useState<ExpenseForm>(emptyRegistrationForm);
   const [message, setMessage] = useState("");
   const [showNewMonthConfirm, setShowNewMonthConfirm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -737,7 +759,7 @@ export default function Home() {
     setEntries([]);
     setSummaries({});
     setSearch("");
-    setForm({ person: "", origin: "", expense: "", value: "" });
+    setForm(emptyRegistrationForm());
     setShowNewMonthConfirm(false);
     setShowSettings(false);
     setShowSalaryEditor(false);
@@ -819,7 +841,7 @@ export default function Home() {
     setEntries(targetEntries);
     setCurrentMonth(targetMonth);
     setSearch("");
-    setForm({ person: "", origin: "", expense: "", value: "" });
+    setForm(emptyRegistrationForm());
     setTab("PAINEL");
     notify(`Mês alterado para ${targetMonth}.`);
   };
@@ -840,14 +862,34 @@ export default function Home() {
     return { ...current, [month]: { ...previous, expenses: rows.reduce((sum, entry) => sum + entry.value, 0), card: rows.filter((entry) => isCardOrigin(entry.origin)).reduce((sum, entry) => sum + entry.value, 0) } };
   };
   const editEntry = (month: string, updated: Entry) => {
-    if (month === currentMonth) {
-      setEntries((current) => current.map((entry) => entry.id === updated.id ? updated : entry));
-      setSummaries((current) => recalculateMonth(month, entries.map((entry) => entry.id === updated.id ? updated : entry), current));
-    } else {
-      setArchivedData((current) => ({ ...current, [month]: (current[month] || []).map((entry) => entry.id === updated.id ? updated : entry) }));
-      setSummaries((current) => recalculateMonth(month, (archivedData[month] || []).map((entry) => entry.id === updated.id ? updated : entry), current));
+    const sourceRows = month === currentMonth ? entries : (archivedData[month] || []);
+    const sourceUpdated = sourceRows.map((entry) => entry.id === updated.id ? updated : entry);
+    const destinationMonth = isWeslyCardCycle(updated.person, updated.origin) && updated.purchaseDate
+      ? invoiceMonthForCardDate(updated.purchaseDate) || month
+      : month;
+    if (destinationMonth === month) {
+      if (month === currentMonth) setEntries(sourceUpdated);
+      else setArchivedData((current) => ({ ...current, [month]: sourceUpdated }));
+      setSummaries((current) => recalculateMonth(month, sourceUpdated, current));
+      notify("Lançamento atualizado. Salvando...");
+      return;
     }
-    notify("Lançamento atualizado. Salvando...");
+    const sourceRemaining = sourceRows.filter((entry) => entry.id !== updated.id);
+    const destinationRows = destinationMonth === currentMonth ? entries : (archivedData[destinationMonth] || []);
+    const destinationUpdated = [{ ...updated }, ...destinationRows.filter((entry) => entry.id !== updated.id)];
+    if (month === currentMonth && destinationMonth !== currentMonth) {
+      setEntries(destinationUpdated);
+      setCurrentMonth(destinationMonth);
+      setArchivedData((current) => ({ ...current, [month]: sourceRemaining, [destinationMonth]: destinationUpdated }));
+    } else if (destinationMonth === currentMonth && month !== currentMonth) {
+      setArchivedData((current) => ({ ...current, [month]: sourceRemaining }));
+      setEntries(destinationUpdated);
+    } else {
+      setArchivedData((current) => ({ ...current, [month]: sourceRemaining, [destinationMonth]: destinationUpdated }));
+    }
+    setArchivedMonths((current) => Array.from(new Set([...current, ...(month !== currentMonth ? [month] : []), ...(destinationMonth !== currentMonth ? [destinationMonth] : [])])));
+    setSummaries((current) => recalculateMonth(destinationMonth, destinationUpdated, recalculateMonth(month, sourceRemaining, current)));
+    notify(`Lançamento movido para a fatura de ${destinationMonth}. Salvando...`);
   };
   const deleteEntry = (month: string, id: number) => {
     if (month === currentMonth) {
@@ -886,10 +928,27 @@ export default function Home() {
       notify("Para uma despesa comum, escolha origem CONTA SIMPLES ou DESPESAS SIMPLES.");
       return;
     }
-    setEntries((current) => [{ id: Date.now(), person, origin, expense, value }, ...current]);
-    setSummaries((current) => { const previous = current[currentMonth] || emptyMonthlySummary(); return { ...current, [currentMonth]: { ...previous, expenses: previous.expenses + value, card: previous.card + (cardOrigin ? value : 0) } }; });
-    setForm({ person: "", origin: "", expense: "", value: "" });
-    notify("Registro adicionado. Salvando...");
+    const usesBillingCycle = isWeslyCardCycle(person, origin);
+    const invoiceMonth = usesBillingCycle ? invoiceMonthForCardDate(form.purchaseDate) : null;
+    if (usesBillingCycle && !invoiceMonth) {
+      notify("Informe uma data válida para a compra do cartão de Wesly.");
+      return;
+    }
+    const entryMonth = invoiceMonth || currentMonth;
+    const newEntry: Entry = { id: Date.now(), person, origin, expense, value, ...(usesBillingCycle ? { purchaseDate: form.purchaseDate } : {}) };
+    const monthRows = entryMonth === currentMonth ? entries : (archivedData[entryMonth] || []);
+    const nextMonthRows = [newEntry, ...monthRows];
+    if (entryMonth === currentMonth) setEntries(nextMonthRows);
+    else {
+      setArchivedData((current) => ({ ...current, [currentMonth]: entries, [entryMonth]: nextMonthRows }));
+      setArchivedMonths((current) => current.includes(currentMonth) ? current : [currentMonth, ...current]);
+      setEntries(nextMonthRows);
+      setCurrentMonth(entryMonth);
+    }
+    if (usesBillingCycle) setSelectedPerson(person);
+    setSummaries((current) => recalculateMonth(entryMonth, nextMonthRows, current));
+    setForm(emptyRegistrationForm());
+    notify(usesBillingCycle ? `Compra de ${formatPurchaseDate(form.purchaseDate)} adicionada à fatura de ${entryMonth} (fechamento dia ${WESLY_CARD_CLOSING_DAY}).` : "Registro adicionado. Salvando...");
     setTab("HISTÓRICO");
   };
 
@@ -970,9 +1029,26 @@ function PalettePicker({ label, value, onChange }: { label: string; value: strin
   };
   return <div className="palette-picker"><div className="palette-picker-label"><span>{label}</span><code>{value.toUpperCase()}</code></div><div className="palette-gradient-square" style={{ backgroundColor: `hsl(${h} ${Math.round(s * 100)}% ${Math.round(l * 100)}%)` }} onPointerDown={pickGradientColor} onPointerMove={pickGradientColor} role="slider" aria-label={`${label}: saturação e luminosidade`} aria-valuetext={value}><span className="palette-picker-marker" style={{ left: `${s * 100}%`, top: `${(1 - l) * 100}%` }} /></div><input className="palette-hue-slider" type="range" min="0" max="360" value={h} onChange={(event) => onChange(hslToHex(Number(event.target.value), s || 1, l))} aria-label={`${label}: matiz`} /><label className="palette-color-input"><span>Escolher cor</span><input type="color" value={value} onChange={(event) => onChange(event.target.value)} aria-label={label} /></label></div>;
 }
-function Register({ form, setForm, onSubmit, people, origins, expenses }: { people: string[]; origins: string[]; expenses: string[]; form: { person: string; origin: string; expense: string; value: string }; setForm: React.Dispatch<React.SetStateAction<{ person: string; origin: string; expense: string; value: string }>>; onSubmit: (event: FormEvent) => void }) {
+function Register({ form, setForm, onSubmit, people, origins, expenses }: { people: string[]; origins: string[]; expenses: string[]; form: ExpenseForm; setForm: React.Dispatch<React.SetStateAction<ExpenseForm>>; onSubmit: (event: FormEvent) => void }) {
   const choose = (field: "person" | "origin" | "expense", value: string) => setForm((current) => ({ ...current, [field]: value }));
-  return <section className="register-view"><div className="section-title"><span>REGISTRO</span><h1>Adicionar despesa</h1><p>Para não alterar os totais: CARTÃO combina com FATURA/FUTURA; outras despesas usam conta simples.</p></div><form className="register-card" onSubmit={onSubmit}><Field label="PESSOA"><Select value={form.person} placeholder="Selecione uma pessoa" options={people} onChange={(value) => choose("person", value)} /></Field><Field label="ORIGEM"><Select value={form.origin} placeholder="Selecione a origem" options={origins} onChange={(value) => choose("origin", value)} /></Field><Field label="DESPESA"><Select value={form.expense} placeholder="Selecione uma despesa" options={expenses} onChange={(value) => choose("expense", value)} /></Field><label className="field-label">VALOR<input className="sheet-input" inputMode="decimal" placeholder="R$ 0,00" value={form.value} onChange={(event) => setForm((current) => ({ ...current, value: event.target.value }))} /></label><button className="register-button" type="submit">REGISTRAR</button></form></section>;
+  const hasWeslyCardCycle = isWeslyCardCycle(form.person, form.origin);
+  const invoiceMonth = hasWeslyCardCycle ? invoiceMonthForCardDate(form.purchaseDate) : null;
+  return (
+    <section className="register-view">
+      <div className="section-title"><span>REGISTRO</span><h1>Adicionar despesa</h1><p>Cartão combina com FATURA/FUTURA; outras despesas usam conta simples. Para Wesly, compras no cartão entram na fatura conforme o fechamento do dia 6.</p></div>
+      <form className="register-card" onSubmit={onSubmit}>
+        <Field label="PESSOA"><Select value={form.person} placeholder="Selecione uma pessoa" options={people} onChange={(value) => choose("person", value)} /></Field>
+        <Field label="ORIGEM"><Select value={form.origin} placeholder="Selecione a origem" options={origins} onChange={(value) => choose("origin", value)} /></Field>
+        <Field label="DESPESA"><Select value={form.expense} placeholder="Selecione uma despesa" options={expenses} onChange={(value) => choose("expense", value)} /></Field>
+        {hasWeslyCardCycle && <>
+          <Field label="DATA DA COMPRA"><input className="sheet-input" type="date" value={form.purchaseDate} onChange={(event) => setForm((current) => ({ ...current, purchaseDate: event.target.value }))} required /></Field>
+          {invoiceMonth && <p className="card-cycle-note">Compra em {formatPurchaseDate(form.purchaseDate)} será lançada na fatura de <strong>{invoiceMonth}</strong> (fecha dia {WESLY_CARD_CLOSING_DAY}).</p>}
+        </>}
+        <label className="field-label">VALOR<input className="sheet-input" inputMode="decimal" placeholder="R$ 0,00" value={form.value} onChange={(event) => setForm((current) => ({ ...current, value: event.target.value }))} /></label>
+        <button className="register-button" type="submit">REGISTRAR</button>
+      </form>
+    </section>
+  );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="field-label">{label}{children}</label>; }
@@ -998,7 +1074,7 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
       closeEdit();
     }
   };
-  const rows = (items: Entry[], rowMonth: string) => items.map((entry) => <div className="table-row history-row" key={`${rowMonth}-${entry.id}`}><span>{entry.person}</span><span>{entry.origin}</span><span>{entry.expense}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions"><button type="button" onClick={() => startEdit(rowMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" onClick={() => onDelete(rowMonth, entry.id)} aria-label="Apagar lançamento"><Trash2 size={14} /></button></div></div>);
+  const rows = (items: Entry[], rowMonth: string) => items.map((entry) => <div className="table-row history-row" key={`${rowMonth}-${entry.id}`}><span>{entry.person}</span><span>{entry.origin}</span><span className="history-expense-cell">{entry.expense}{entry.purchaseDate && <small>Compra em {formatPurchaseDate(entry.purchaseDate)}</small>}</span><strong>{brl.format(entry.value)}</strong><div className="row-actions"><button type="button" onClick={() => startEdit(rowMonth, entry)} aria-label="Editar lançamento"><Pencil size={14} /></button><button type="button" onClick={() => onDelete(rowMonth, entry.id)} aria-label="Apagar lançamento"><Trash2 size={14} /></button></div></div>);
   // Older states can have the month recorded in only one of these
   // structures. Show the union so a saved month is never hidden by a
   // partial archive, while preserving the current month first.
@@ -1011,9 +1087,9 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
   useEffect(() => {
     if (!monthOptions.includes(exportMonth)) setExportMonth(month);
   }, [month, exportMonth, monthOptions.join("|")]);
-  const exportEntries = exportMonth === month ? allEntries : (archivedData[exportMonth] || []);
+  const exportEntries = (exportMonth === month ? allEntries : (archivedData[exportMonth] || [])).filter((entry) => entry.person === person);
   const exportSpreadsheet = () => {
-    const csvRows = [["MÊS", exportMonth], [], ["PESSOA", "ORIGEM", "DESPESA", "VALOR"], ...exportEntries.map((entry) => [entry.person, entry.origin, entry.expense, entry.value.toFixed(2).replace(".", ",")]), [], ["TOTAL", "", "", (summaries[exportMonth]?.expenses ?? exportEntries.reduce((sum, entry) => sum + entry.value, 0)).toFixed(2).replace(".", ",")]];
+    const csvRows = [["MÊS", exportMonth], [], ["PESSOA", "ORIGEM", "DESPESA", "DATA DA COMPRA", "VALOR"], ...exportEntries.map((entry) => [entry.person, entry.origin, entry.expense, entry.purchaseDate ? formatPurchaseDate(entry.purchaseDate) : "", entry.value.toFixed(2).replace(".", ",")]), [], ["TOTAL", "", "", "", exportEntries.reduce((sum, entry) => sum + entry.value, 0).toFixed(2).replace(".", ",")]];
     const csv = "\ufeff" + csvRows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
@@ -1026,7 +1102,7 @@ function HistoryView({ entries, allEntries, search, setSearch, month, archivedMo
     setExportMessage(`${exportMonth} exportado com ${exportEntries.length} lançamento(s).`);
     window.setTimeout(() => setExportMessage(""), 2800);
   };
-  return <section className="history-view"><div className="section-title"><span>HISTÓRICO</span><h1>Lançamentos registrados</h1><p>Registros de {month} para {person}. Escolha um mês para abrir todo o sistema nesse período.</p></div><div className="history-month-picker"><label className="field-label">VISUALIZAR MÊS<select className="export-month-select" value={month} onChange={(event) => onMonthChange(event.target.value)} aria-label="Abrir outro mês">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label></div><div className="export-panel"><div><span>EXPORTAR PLANILHA</span><strong>Escolha o mês desejado</strong></div><div className="export-controls"><select className="export-month-select" value={exportMonth} onChange={(event) => setExportMonth(event.target.value)} aria-label="Mês para exportar">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="export-button" onClick={exportSpreadsheet}><Download size={16} /> Exportar</button></div></div>{exportMessage && <div className="export-message" role="status">{exportMessage}</div>}<div className="history-toolbar"><div className="sheet-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar pessoa, origem ou despesa" />{search && <button type="button" onClick={(event) => { event.preventDefault(); setSearch(""); }} aria-label="Limpar pesquisa"><X size={15} /></button>}</div></div><div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span><span>AÇÃO</span></div>{rows(entries, month)}{entries.length === 0 && <div className="no-results">Nenhum registro registrado em {month}.</div>}</div>{editing && draft && <div className="edit-entry-backdrop" role="presentation" onClick={closeEdit}><div className="edit-entry-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR LANÇAMENTO</span><h2>{editing.month}</h2><input value={draft.person} onChange={(event) => setDraft({ ...draft, person: event.target.value })} aria-label="Pessoa" /><input value={draft.origin} onChange={(event) => setDraft({ ...draft, origin: event.target.value })} aria-label="Origem" /><input value={draft.expense} onChange={(event) => setDraft({ ...draft, expense: event.target.value })} aria-label="Despesa" /><input inputMode="decimal" value={valueDraft} onChange={(event) => setValueDraft(event.target.value)} onBlur={() => { const parsed = parseAmount(valueDraft); if (Number.isFinite(parsed)) setValueDraft(parsed.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })); }} aria-label="Valor" /><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={closeEdit}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveEdit}>Salvar</button></div></div></div>}</section>;
+  return <section className="history-view"><div className="section-title"><span>HISTÓRICO</span><h1>Lançamentos registrados</h1><p>Registros de {month} para {person}. Escolha um mês para abrir todo o sistema nesse período.</p></div><div className="history-month-picker"><label className="field-label">VISUALIZAR MÊS<select className="export-month-select" value={month} onChange={(event) => onMonthChange(event.target.value)} aria-label="Abrir outro mês">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label></div><div className="export-panel"><div><span>EXPORTAR PLANILHA</span><strong>Escolha o mês desejado</strong></div><div className="export-controls"><select className="export-month-select" value={exportMonth} onChange={(event) => setExportMonth(event.target.value)} aria-label="Mês para exportar">{monthOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select><button type="button" className="export-button" onClick={exportSpreadsheet}><Download size={16} /> Exportar</button></div></div>{exportMessage && <div className="export-message" role="status">{exportMessage}</div>}<div className="history-toolbar"><div className="sheet-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar pessoa, origem ou despesa" />{search && <button type="button" onClick={(event) => { event.preventDefault(); setSearch(""); }} aria-label="Limpar pesquisa"><X size={15} /></button>}</div></div><div className="history-table"><div className="table-head"><span>PESSOA</span><span>ORIGEM</span><span>DESPESA</span><span>VALOR</span><span>AÇÃO</span></div>{rows(entries, month)}{entries.length === 0 && <div className="no-results">Nenhum registro registrado em {month}.</div>}</div>{editing && draft && <div className="edit-entry-backdrop" role="presentation" onClick={closeEdit}><div className="edit-entry-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><span className="modal-kicker">EDITAR LANÇAMENTO</span><h2>{editing.month}</h2><input value={draft.person} onChange={(event) => setDraft({ ...draft, person: event.target.value })} aria-label="Pessoa" /><input value={draft.origin} onChange={(event) => setDraft({ ...draft, origin: event.target.value })} aria-label="Origem" /><input value={draft.expense} onChange={(event) => setDraft({ ...draft, expense: event.target.value })} aria-label="Despesa" />{isWeslyCardCycle(draft.person, draft.origin) && <label className="field-label">DATA DA COMPRA<input type="date" value={draft.purchaseDate || ""} onChange={(event) => setDraft({ ...draft, purchaseDate: event.target.value })} aria-label="Data da compra" /><small className="card-cycle-note">{draft.purchaseDate ? `Vai para a fatura de ${invoiceMonthForCardDate(draft.purchaseDate) || "mês atual"} (fecha dia ${WESLY_CARD_CLOSING_DAY}).` : "Registro antigo sem data; continuará no mês atual."}</small></label>}<input inputMode="decimal" value={valueDraft} onChange={(event) => setValueDraft(event.target.value)} onBlur={() => { const parsed = parseAmount(valueDraft); if (Number.isFinite(parsed)) setValueDraft(parsed.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })); }} aria-label="Valor" /><div className="month-modal-actions"><button type="button" className="modal-cancel" onClick={closeEdit}>Cancelar</button><button type="button" className="modal-confirm" onClick={saveEdit}>Salvar</button></div></div></div>}</section>;
 }
 
 function CategoriesView({ people, origins, expenses, hiddenExpenses, onRename, onAdd, onRemove }: { people: string[]; origins: string[]; expenses: string[]; hiddenExpenses: string[]; onRename: (kind: "people" | "origins" | "expenses", index: number, name: string) => void; onAdd: (kind: "people" | "origins" | "expenses", name: string) => void; onRemove: (kind: "people" | "origins" | "expenses", index: number) => void }) {
