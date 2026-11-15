@@ -227,6 +227,25 @@ function formatPurchaseDate(value: string) {
 function getWeslyCurrentInvoiceMonth() {
   return invoiceMonthForCardDate(localDateInputValue()) || calendarMonth();
 }
+function collectCurrentInvoiceEntries(entries: Entry[], archivedData: Record<string, Entry[]>, currentMonth: string, currentCalendarMonth: string, weslyInvoiceMonth: string): InvoiceEntry[] {
+  const calendarRows = currentCalendarMonth === currentMonth ? entries : (archivedData[currentCalendarMonth] || []);
+  const invoiceRows = weslyInvoiceMonth === currentMonth ? entries : (archivedData[weslyInvoiceMonth] || []);
+  const uniqueRows = new Map<string, InvoiceEntry>();
+  for (const entry of calendarRows) {
+    const fingerprint = entryFingerprint(entry);
+    if (!uniqueRows.has(fingerprint)) uniqueRows.set(fingerprint, { ...entry, sourceMonth: currentCalendarMonth });
+  }
+  for (const entry of invoiceRows) {
+    const fingerprint = entryFingerprint(entry);
+    if (!uniqueRows.has(fingerprint)) uniqueRows.set(fingerprint, { ...entry, sourceMonth: weslyInvoiceMonth });
+  }
+  return Array.from(uniqueRows.values()).filter((entry) => {
+    if (!isCardOrigin(entry.origin) || !isInvoiceExpense(entry.expense)) return false;
+    if (normalizedLabel(entry.person) !== "WESLY") return entry.sourceMonth === currentCalendarMonth;
+    const dateBasedMonth = entry.purchaseDate ? invoiceMonthForCardDate(entry.purchaseDate) : null;
+    return dateBasedMonth ? dateBasedMonth === weslyInvoiceMonth : entry.sourceMonth === weslyInvoiceMonth;
+  });
+}
 function migrateLegacyWeslyFaturaEntries(payload: Record<string, unknown>) {
   if (Number(payload.billingCycleMigrationVersion) >= WESLY_FATURA_MIGRATION_VERSION) return { payload, changed: false, moved: 0 };
   const fromMonth = WESLY_FATURA_MIGRATION_FROM;
@@ -864,23 +883,7 @@ export default function Home() {
   const selectedEntries = useMemo(() => entries.filter((entry) => entry.person === selectedPerson), [entries, selectedPerson]);
   const currentCalendarMonth = calendarMonth();
   const weslyCurrentInvoiceMonth = getWeslyCurrentInvoiceMonth();
-  const currentInvoiceEntries = useMemo(() => {
-    const calendarRows = currentCalendarMonth === currentMonth ? entries : (archivedData[currentCalendarMonth] || []);
-    const invoiceRows = weslyCurrentInvoiceMonth === currentMonth ? entries : (archivedData[weslyCurrentInvoiceMonth] || []);
-    const uniqueRows = new Map<string, InvoiceEntry>();
-    for (const entry of calendarRows) {
-      const fingerprint = entryFingerprint(entry);
-      if (!uniqueRows.has(fingerprint)) uniqueRows.set(fingerprint, { ...entry, sourceMonth: currentCalendarMonth });
-    }
-    for (const entry of invoiceRows) {
-      const fingerprint = entryFingerprint(entry);
-      if (!uniqueRows.has(fingerprint)) uniqueRows.set(fingerprint, { ...entry, sourceMonth: weslyCurrentInvoiceMonth });
-    }
-    return Array.from(uniqueRows.values()).filter((entry) => {
-      const dateBasedMonth = normalizedLabel(entry.person) === "WESLY" && entry.purchaseDate ? invoiceMonthForCardDate(entry.purchaseDate) : null;
-      return isCardOrigin(entry.origin) && isInvoiceExpense(entry.expense) && (dateBasedMonth ? dateBasedMonth === weslyCurrentInvoiceMonth : entry.sourceMonth === weslyCurrentInvoiceMonth);
-    });
-  }, [currentCalendarMonth, weslyCurrentInvoiceMonth, currentMonth, entries, archivedData]);
+  const currentInvoiceEntries = useMemo(() => collectCurrentInvoiceEntries(entries, archivedData, currentMonth, currentCalendarMonth, weslyCurrentInvoiceMonth), [currentCalendarMonth, weslyCurrentInvoiceMonth, currentMonth, entries, archivedData]);
   const weslyInvoiceEntries = useMemo(() => currentInvoiceEntries.filter((entry) => normalizedLabel(entry.person) === "WESLY"), [currentInvoiceEntries]);
   const selectedExpenses = useMemo(() => {
     if (normalizedLabel(selectedPerson) !== "WESLY" || currentMonth !== currentCalendarMonth) {
